@@ -1,0 +1,12 @@
+version: '2'
+
+services:
+  app:
+    build: ./app
+    env_file: .env
+    volumes:
+      - ./app:/home/node/app
+    entrypoint:
+      /home/node/app/entrypoint.sh
+    ports:
+      - "3002:3002"
