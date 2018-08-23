@@ -1,7 +1,6 @@
 import { model, Schema } from "mongoose";
 import * as mongoosePaginate from 'mongoose-paginate';
-import { matches } from 'validator';
-import { IGroupDocument } from "./group.model";
+import { IGroupDocument } from "../models/group.model";
 
 const GroupSchema: Schema = new Schema({
     name: {
@@ -10,11 +9,7 @@ const GroupSchema: Schema = new Schema({
         required: true,
         type: String,
         trim: true,
-        validate: {
-            validator: (value: any) => matches(value, new RegExp('^[a-zA-Z0-9 ]+$')),
-            msg: 'Invalid name',
-            type: 'matches'
-        }
+        match: new RegExp('^[a-zA-Z0-9 ]+$')
     },
     slug: {
         minlength: 1,
@@ -24,16 +19,10 @@ const GroupSchema: Schema = new Schema({
         type: String,
         trim: true,
         lowercase: true,
-        validate: [
-            {
-                validator: (value: any) => matches(value, new RegExp('^[a-z0-9\-]+$')),
-                msg: 'Invalid slug',
-                type: 'matches'
-            }
-        ]
+        match: new RegExp('^[a-z0-9\-]+$')
     },
     users: {
-        default: new Array(),
+        default: () => new Array(),
         type: Array,
         required: true,
         validate: {

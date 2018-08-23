@@ -1,13 +1,12 @@
-import { ObjectID } from 'bson';
 import { expect } from 'chai';
 import { describe, it } from 'mocha';
-import { Group } from '../../../src/models/group.schema';
+import { Group } from '../../../src/schemas/group.schema';
 
 class ShouldNotSucceed extends Error {
     public name = 'ShouldNotSucceed';
 }
 
-describe('Unit -> Models -> User', () => {
+describe('Unit -> Models -> Group', () => {
     it('should throw required validation error for name and slug', async () => {
         try {
             const group = new Group();
@@ -60,7 +59,7 @@ describe('Unit -> Models -> User', () => {
                 expect(e.name).to.be.eq('ValidationError');
                 expect(e.errors).to.be.an('object');
                 expect(e.errors).to.have.keys(['name']);
-                expect(e.errors.name.kind).to.be.eq('matches');
+                expect(e.errors.name.kind).to.be.eq('regexp');
             }
         });
         it('should throw matches error if name includes "*"', async () => {
@@ -72,7 +71,7 @@ describe('Unit -> Models -> User', () => {
                 expect(e.name).to.be.eq('ValidationError');
                 expect(e.errors).to.be.an('object');
                 expect(e.errors).to.have.keys(['name']);
-                expect(e.errors.name.kind).to.be.eq('matches');
+                expect(e.errors.name.kind).to.be.eq('regexp');
             }
         });
         it('should create group with name "Admin"', async () => {
@@ -171,6 +170,21 @@ describe('Unit -> Models -> User', () => {
             } catch (e) {
                 console.log(e);
                 throw e;
+            }
+        });
+    });
+
+    describe('count', () => {
+        it('should raise error for count is bigger than max value', async () => {
+            try {
+                const group = new Group({name: 'Group Name', slug: 'group-name', count: 251});
+                await group.validate();
+                throw new ShouldNotSucceed();
+            } catch (e) {
+                expect(e.name).to.be.eq('ValidationError');
+                expect(e.errors).to.be.an('object');
+                expect(e.errors).to.have.keys(['count']);
+                expect(e.errors.count.kind).to.be.eq('max');
             }
         });
     });
