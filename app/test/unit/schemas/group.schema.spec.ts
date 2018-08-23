@@ -6,7 +6,7 @@ class ShouldNotSucceed extends Error {
     public name = 'ShouldNotSucceed';
 }
 
-describe('Unit -> Models -> Group', () => {
+describe('Unit -> Schemas -> Group', () => {
     it('should throw required validation error for name and slug', async () => {
         try {
             const group = new Group();
