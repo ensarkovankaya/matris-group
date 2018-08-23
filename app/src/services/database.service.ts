@@ -1,0 +1,217 @@
+import { DocumentQuery, PaginateOptions, PaginateResult } from 'mongoose';
+import { Service } from "typedi";
+import { getLogger, Logger } from "../logger";
+import { ICompareDateModel, ICompareNumberModel } from '../models/compare.date.model';
+import { IGroupFilter } from '../models/group.filter.model';
+import { IGroupDocument } from '../models/group.model';
+import { IUserFilter } from '../models/user.filter.model';
+import { IUserDocument } from '../models/user.model';
+import { Group } from '../schemas/group.schema';
+import { User } from '../schemas/user.schema';
+
+@Service('DatabaseService')
+export class DatabaseService {
+    public logger: Logger;
+
+    constructor() {
+        this.logger = getLogger('DatabaseService', ['service']);
+    }
+
+    /**
+     * Create new group
+     * @param {object} data Create data
+     * @returns {Promise<IGroupDocument>}
+     */
+    public async createGroup(data: object): Promise<IGroupDocument> {
+        this.logger.debug('CreateGroup', { data });
+        try {
+            return await new Group({
+                ...data,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }).save({ validateBeforeSave: true });
+        } catch (e) {
+            this.logger.error('CreateGroup', e);
+            throw e;
+        }
+    }
+
+    /**
+     * Update group entry with given data
+     * @param {string} id Group id
+     * @param {object} data Update data
+     */
+    public async updateGroup(id: string, data: object): Promise<void> {
+        this.logger.debug('UpdateGroup', { id, data });
+        try {
+            await Group.findByIdAndUpdate(id, { ...data, updatedAt: new Date() }).exec();
+        } catch (err) {
+            this.logger.error('UpdateGroup', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Remove group entry from database.
+     * @param {string} id : Group id
+     */
+    public async deleteGroup(id: string): Promise<void> {
+        this.logger.debug('DeleteGroup', { id });
+        try {
+            await Group.findByIdAndRemove(id).exec();
+        } catch (err) {
+            this.logger.error('DeleteGroup', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Filters groups with given conditions
+     * @param {IGroupFilter} conditions: Group Filters
+     * @param {PaginateOptions} pagination
+     * @returns {Promise<PaginateResult<IGroupDocument>>}
+     */
+    public async filterGroup(conditions: IGroupFilter = {}, pagination: PaginateOptions):
+        Promise<PaginateResult<IGroupDocument>> {
+        this.logger.debug('FilterGroup', { conditions, pagination });
+        try {
+            let query = Group.find();
+            if (typeof conditions.deleted === 'boolean') {
+                query = query.where('deleted', conditions.deleted);
+            }
+            if (conditions.deletedAt !== undefined) {
+                query = this.compareQuery(query, 'deletedAt', conditions.deletedAt);
+            }
+            if (conditions.createdAt) {
+                query = this.compareQuery(query, 'createdAt', conditions.createdAt);
+            }
+            if (conditions.updatedAt) {
+                query = this.compareQuery(query, 'updatedAt', conditions.updatedAt);
+            }
+            if (typeof conditions.name === 'string') {
+                query = query.where('name', conditions.name);
+            }
+            if (typeof conditions.slug === 'string') {
+                query = query.where('slug', conditions.slug);
+            }
+            if (conditions.count) {
+                query = this.compareQuery(query, 'count', conditions.count);
+            }
+            if (conditions.users) {
+                query = query.where('users').in(conditions.users);
+            }
+            const queryObject = query.getQuery();
+            this.logger.debug('FilterGroup', { query: queryObject });
+            return await Group.paginate(queryObject, pagination);
+        } catch (e) {
+            this.logger.error('FilterGroup', e);
+            throw e;
+        }
+    }
+
+    /**
+     * Create new user
+     * @param {object} data Create data
+     */
+    public async createUser(data: object): Promise<IUserDocument> {
+        this.logger.debug('CreateUser', { data });
+        try {
+            return await new User({
+                ...data,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }).save({ validateBeforeSave: true });
+        } catch (e) {
+            this.logger.error('CreateUser', e);
+            throw e;
+        }
+    }
+
+    /**
+     * Update user entry with given data
+     * @param {string} id User id
+     * @param {object} data Update data
+     */
+    public async updateUser(id: string, data: object): Promise<void> {
+        this.logger.debug('UpdateUser', { id, data });
+        try {
+            const user = await User.findOne({ user: id });
+            await user.update({ ...data, updatedAt: new Date() }).exec();
+        } catch (err) {
+            this.logger.error('UpdateUser', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Remove user entry from database.
+     * @param {string} id : User id
+     */
+    public async deleteUser(id: string): Promise<void> {
+        this.logger.debug('DeleteUser', { id });
+        try {
+            await User.findOneAndRemove({ user: id }).exec();
+        } catch (err) {
+            this.logger.error('DeleteUser', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Filters users with given conditions
+     * @param {IUserFilter} conditions: User Filters
+     * @param {PaginateOptions} pagination
+     * @returns {Promise<PaginateResult<IUserDocument>>}
+     */
+    public async filterUser(conditions: IUserFilter = {}, pagination: PaginateOptions):
+        Promise<PaginateResult<IUserDocument>> {
+        this.logger.debug('FilterUser', { conditions, pagination });
+        try {
+            let query = User.find();
+            if (typeof conditions.deleted === 'boolean') {
+                query = query.where('deleted', conditions.deleted);
+            }
+            if (conditions.deletedAt !== undefined) {
+                query = this.compareQuery(query, 'deletedAt', conditions.deletedAt);
+            }
+            if (conditions.createdAt) {
+                query = this.compareQuery(query, 'createdAt', conditions.createdAt);
+            }
+            if (conditions.updatedAt) {
+                query = this.compareQuery(query, 'updatedAt', conditions.updatedAt);
+            }
+            if (conditions.count) {
+                query = this.compareQuery(query, 'count', conditions.count);
+            }
+            if (conditions.groups) {
+                query = query.where('groups').in(conditions.groups);
+            }
+            const queryObject = query.getQuery();
+            this.logger.debug('FilterUser', { query: queryObject });
+            return await User.paginate(queryObject, pagination);
+        } catch (e) {
+            this.logger.error('FilterUser', e);
+            throw e;
+        }
+    }
+
+    public compareQuery(
+        query: DocumentQuery<any[], any>,
+        path: string,
+        filter: ICompareDateModel | ICompareNumberModel) {
+        if (filter.eq !== undefined) {
+            return query.where(path, filter.eq);
+        }
+        if (filter.gt !== undefined) {
+            query = query.where(path).gt(filter.gt as any);
+        } else if (filter.gte !== undefined) {
+            query = query.where(path).gte(filter.gte as any);
+        }
+        if (filter.lt !== undefined) {
+            query = query.where(path).lt(filter.lt as any);
+        } else if (filter.lte !== undefined) {
+            query = query.where(path).lte(filter.lte as any);
+        }
+        return query;
+    }
+}
