@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "lib": [
-      "es2015"
+      "es2016",
+      "esnext.asynciterable"
     ],
     "typeRoots": [
       "node_modules/@types"
@@ -12,7 +13,7 @@
     "noImplicitReturns": true,
     "outDir": "./build",
     "sourceMap": true,
-    "target": "es5",
+    "target": "es2016",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
