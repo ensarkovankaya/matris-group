@@ -6,41 +6,37 @@ import * as expressValidator from 'express-validator';
 import * as helmet from "helmet";
 import * as mongoose from "mongoose";
 import * as morgan from "morgan";
+import { Service } from "typedi";
 import { getGraphQLHTTPServer } from './graphql';
 import { getLogger, Logger } from './logger';
+import { DatabaseService } from './services/database.service';
 
+@Service('Server')
 export class Server {
     // set app to be of type express.Application
     public app: express.Application;
     private logger: Logger;
 
-    constructor() {
+    constructor(private db: DatabaseService) {
         this.logger = getLogger('Server');
         this.app = express();
-        this.config();
-        this.routes();
     }
 
     /**
      * Connect Database
-     * @param {string} username: Database user name
-     * @param {string} password: Database password
-     * @param {string} host: Database host
-     * @param {number} port: Database port
      * @return {Promise<void>}
      */
-    public async connect(username: string, password: string, host: string, port: number): Promise<void> {
-        try {
-            await mongoose.connect(`mongodb://${username}:${password}@${host}:${port}`);
-            this.logger.debug('Database Connected', {host, port, username});
-        } catch (err) {
-            this.logger.error('Database Connection Failed', err, {host, port, username});
-            throw err;
-        }
+    public async connect(): Promise<void> {
+        const username = process.env.MONGODB_USERNAME;
+        const password = process.env.MONGODB_PASSWORD;
+        const host = process.env.MONGODB_HOST;
+        const port = parseInt(process.env.MONGODB_PORT, 10);
+
+        return await this.db.connect(username, password, host, port);
     }
 
     // Setup application config
-    private config() {
+    public config() {
         try {
             this.app.use(bodyParser.json());
             this.app.use(morgan("dev"));
@@ -72,7 +68,7 @@ export class Server {
     }
 
     // Setup application routes
-    private routes(): void {
+    public routes(): void {
         try {
             this.app.use('/', getGraphQLHTTPServer());
         } catch (err) {
