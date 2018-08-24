@@ -1,4 +1,4 @@
-import { DocumentQuery, PaginateOptions, PaginateResult } from 'mongoose';
+import { connect, DocumentQuery, Mongoose, PaginateOptions, PaginateResult } from 'mongoose';
 import { Service } from "typedi";
 import { getLogger, Logger } from "../logger";
 import { ICompareDateModel, ICompareNumberModel } from '../models/compare.date.model';
@@ -12,9 +12,50 @@ import { User } from '../schemas/user.schema';
 @Service('DatabaseService')
 export class DatabaseService {
     public logger: Logger;
+    public db: Mongoose;
 
     constructor() {
         this.logger = getLogger('DatabaseService', ['service']);
+    }
+
+    /**
+     * Connect to Database
+     * @param {string} user: Database user name
+     * @param {string} password: Database password
+     * @param {string} host: Database host
+     * @param {number} port: Database port
+     * @return {Promise<void>}
+     */
+    public async connect(user: string, password: string, host: string, port: number): Promise<void> {
+        try {
+            this.logger.debug('Connecting to database', { user, host, port });
+            this.db = await connect(`mongodb://${host}:${port}`, {
+                user,
+                pass: password
+            });
+            this.logger.info('Database connection succesfull');
+        } catch (err) {
+            this.logger.error('Database Connection Failed', err, { host, port, user });
+            throw err;
+        }
+    }
+
+    /**
+     * Disconnects from database
+     */
+    public async disconnect(): Promise<void> {
+        try {
+            if (this.db) {
+                this.logger.debug('Disconnecting to database.');
+                await this.db.disconnect();
+                this.logger.info('Disconnected to database.');
+            } else {
+                this.logger.warn('Database not connected.');
+            }
+        } catch (e) {
+            this.logger.error('Database disconnection failed', e);
+            throw e;
+        }
     }
 
     /**
