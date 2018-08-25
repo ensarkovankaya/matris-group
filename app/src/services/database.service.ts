@@ -200,14 +200,13 @@ export class DatabaseService {
 
     /**
      * Update user entry with given data
-     * @param {string} id User id
+     * @param {string} user User id
      * @param {object} data Update data
      */
-    public async updateUser(id: string, data: object): Promise<void> {
-        this.logger.debug('UpdateUser', { id, data });
+    public async updateUser(user: string, data: object): Promise<void> {
+        this.logger.debug('UpdateUser', { user, data });
         try {
-            const user = await User.findOne({ user: id });
-            await user.update({ ...data, updatedAt: new Date() }).exec();
+            await User.findOneAndUpdate({ user }, data).exec();
         } catch (err) {
             this.logger.error('UpdateUser', err);
             throw err;
@@ -216,12 +215,12 @@ export class DatabaseService {
 
     /**
      * Remove user entry from database.
-     * @param {string} id : User id
+     * @param {string} user : User id
      */
-    public async deleteUser(id: string): Promise<void> {
-        this.logger.debug('DeleteUser', { id });
+    public async deleteUser(user: string): Promise<void> {
+        this.logger.debug('DeleteUser', { user });
         try {
-            await User.findOneAndRemove({ user: id }).exec();
+            await User.findOneAndRemove({ user }).exec();
         } catch (err) {
             this.logger.error('DeleteUser', err);
             throw err;
