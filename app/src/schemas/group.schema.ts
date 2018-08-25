@@ -15,7 +15,6 @@ const GroupSchema: Schema = new Schema({
         minlength: 1,
         maxLength: 35,
         required: true,
-        unique: true,
         type: String,
         trim: true,
         lowercase: true,
