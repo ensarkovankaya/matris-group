@@ -3,6 +3,7 @@ import { after, before, describe, it } from 'mocha';
 import { Group } from '../../../src/schemas/group.schema';
 import { User } from '../../../src/schemas/user.schema';
 import { DatabaseService } from '../../../src/services/database.service';
+import { generateRandomString } from '../../../src/utils';
 
 const database = new DatabaseService();
 
@@ -15,14 +16,6 @@ before('Connect to Database', async () => {
 
     await database.connect(username, password, host, port);
 });
-
-const genereateRandomString = (length: number): string => {
-    let string = "";
-    while (string.length < length) {
-        string += (Math.random() + 1).toString(36).substring(7);
-    }
-    return string.slice(0, length);
-};
 
 after('Disconnect from Database', async () => await database.disconnect());
 
@@ -43,7 +36,7 @@ describe.only('Unit -> Services -> Database', () => {
         describe('Create', () => {
             it('should create group with name', async () => {
                 const db = new DatabaseService();
-                const name = genereateRandomString(4);
+                const name = generateRandomString(4);
                 const group = await db.createGroup({name, slug: name.toLowerCase()});
 
                 expect(group).to.be.instanceof(Group);
@@ -65,8 +58,8 @@ describe.only('Unit -> Services -> Database', () => {
         describe('Update', () => {
             it('should update group name', async () => {
                 const db = new DatabaseService();
-                const name = genereateRandomString(5);
-                const newName = genereateRandomString(5);
+                const name = generateRandomString(5);
+                const newName = generateRandomString(5);
                 const group = await db.createGroup({name, slug: name.toLowerCase()});
 
                 await db.updateGroup(group._id.toString(), {name: newName});
@@ -80,7 +73,7 @@ describe.only('Unit -> Services -> Database', () => {
         describe('Delete', () => {
             it('should delete group', async () => {
                 const db = new DatabaseService();
-                const name = genereateRandomString(10);
+                const name = generateRandomString(10);
                 const group = await db.createGroup({name, slug: name.toLowerCase()});
 
                 await db.deleteGroup(group._id.toString());
@@ -95,7 +88,7 @@ describe.only('Unit -> Services -> Database', () => {
         describe('Create', () => {
             it('should create user entry', async () => {
                 const db = new DatabaseService();
-                const id = genereateRandomString(24);
+                const id = generateRandomString(24);
                 const user = await db.createUser({
                     user: id,
                     groups: [
@@ -131,7 +124,7 @@ describe.only('Unit -> Services -> Database', () => {
             it('should update user entry', async () => {
                 const db = new DatabaseService();
                 const user = await db.createUser({
-                    user: genereateRandomString(24)
+                    user: generateRandomString(24)
                 });
 
                 expect(user.groups).to.be.an('array');
@@ -163,7 +156,7 @@ describe.only('Unit -> Services -> Database', () => {
             it('should delete user entry', async () => {
                 const db = new DatabaseService();
                 const user = await db.createUser({
-                    user: genereateRandomString(24)
+                    user: generateRandomString(24)
                 });
 
                 expect(user).to.be.instanceof(User);
