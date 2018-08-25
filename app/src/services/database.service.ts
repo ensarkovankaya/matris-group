@@ -59,6 +59,21 @@ export class DatabaseService {
     }
 
     /**
+     * Finds one group or null with given condition
+     * @param {object} condition Query condition.
+     * @returns {Promise<IGroupDocument | null>}
+     */
+    public async findOneGroupBy(condition: object): Promise<IGroupDocument | null> {
+        try {
+            this.logger.debug('FindOneGroupBy', {condition});
+            return await Group.findOne(condition).exec();
+        } catch (e) {
+            this.logger.error('FindOneGroupBy', e);
+            throw e;
+        }
+    }
+
+    /**
      * Create new group
      * @param {object} data Create data
      * @returns {Promise<IGroupDocument>}
@@ -146,6 +161,21 @@ export class DatabaseService {
             return await Group.paginate(queryObject, pagination);
         } catch (e) {
             this.logger.error('FilterGroup', e);
+            throw e;
+        }
+    }
+
+    /**
+     * Finds one user or null with given condition
+     * @param {object} condition Query condition.
+     * @returns {Promise<IUserDocument | null>}
+     */
+    public async findOneUserBy(condition: object): Promise<IUserDocument | null> {
+        try {
+            this.logger.debug('FindOneUserBy', {condition});
+            return await User.findOne(condition).exec();
+        } catch (e) {
+            this.logger.error('FindOneUserBy', e);
             throw e;
         }
     }
