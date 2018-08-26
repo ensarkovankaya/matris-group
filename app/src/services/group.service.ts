@@ -10,7 +10,7 @@ export class GroupService {
 
     private logger: Logger;
 
-    constructor(public db: DatabaseService) {
+    constructor(private db: DatabaseService) {
         this.logger = getLogger('GroupService', ['service']);
     }
 
