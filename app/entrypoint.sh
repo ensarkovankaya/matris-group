@@ -17,7 +17,11 @@ elif [ "$1" == "test" ]; then
 elif [ "$1" == "install" ]; then
     install
 elif [ "$1" == "e2e" ]; then
-    npm run e2e
+    if [ "$NODE_ENV" != "production" ] || [ "$NODE_ENV" != "prod" ]; then
+        npm run e2e
+    else
+        echo 'E2E tests can not run in production environment' && exit 1
+    fi
 else
     # If environment development use nodemon to watch file changes
     # Otherwise just run the server
