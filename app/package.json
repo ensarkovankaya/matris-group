@@ -7,7 +7,6 @@
   "license": "ISC",
   "scripts": {
     "test": "mocha -b -r ts-node/register test/unit/**/*.spec.ts test/unit/**/**/*.spec.ts test/unit/**/**/**/*.spec.ts",
-    "test:data": "mocha -b -r ts-node/register test/data/**/*.spec.ts",
     "e2e": "mocha -b -r ts-node/register test/e2e/**/*.spec.ts",
     "check": "tslint -p tslint.json",
     "build": "npm run check && tsc",
@@ -25,7 +24,6 @@
     "express-graphql": "^0.6.12",
     "express-validator": "^5.2.0",
     "helmet": "^3.12.1",
-    "matris-account-api": "^1.4.0",
     "matris-logger": "^1.1.5",
     "mongoose": "^5.2.4",
     "mongoose-paginate": "^5.0.3",
