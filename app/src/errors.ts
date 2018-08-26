@@ -18,3 +18,7 @@ export class GroupNotFound extends Error {
 export class UserAlreadyInGroup extends Error {
     public name = 'UserAlreadyInGroup';
 }
+
+export class UserNotFound extends Error {
+    public name = 'UserNotFound';
+}
