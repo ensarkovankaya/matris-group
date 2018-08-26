@@ -1,9 +1,9 @@
 import { expect } from 'chai';
-import { after, before, describe, it } from 'mocha';
-import { Group } from '../../../src/schemas/group.schema';
-import { User } from '../../../src/schemas/user.schema';
-import { DatabaseService } from '../../../src/services/database.service';
-import { generateRandomString } from '../../../src/utils';
+import { after, before, beforeEach, describe, it } from 'mocha';
+import { Group } from '../../src/schemas/group.schema';
+import { User } from '../../src/schemas/user.schema';
+import { DatabaseService } from '../../src/services/database.service';
+import { generateRandomString } from '../../src/utils';
 
 const database = new DatabaseService();
 
@@ -17,7 +17,21 @@ before('Connect to Database', async () => {
     await database.connect(username, password, host, port);
 });
 
-after('Disconnect from Database', async () => await database.disconnect());
+beforeEach('Reset Database', async () => {
+    try {
+        await User.remove({}).exec();
+    } catch (e) {
+        console.log('Reseting User collection failed');
+        throw e;
+    }
+
+    try {
+        await Group.remove({}).exec();
+    } catch (e) {
+        console.log('Reseting Group collection failed');
+        throw e;
+    }
+});
 
 describe.only('Unit -> Services -> Database', () => {
     it('should initialize database', async () => {
@@ -80,6 +94,12 @@ describe.only('Unit -> Services -> Database', () => {
 
                 const deleted = await db.findOneGroupBy({_id: group._id.toString()});
                 expect(deleted).to.be.eq(null);
+            });
+        });
+
+        describe('FilterGroup', () => {
+            it('should return only deleted groups', async () => {
+
             });
         });
     });
@@ -169,3 +189,5 @@ describe.only('Unit -> Services -> Database', () => {
         });
     });
 });
+
+after('Disconnect from Database', async () => await database.disconnect());
