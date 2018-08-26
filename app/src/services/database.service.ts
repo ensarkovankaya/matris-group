@@ -12,7 +12,7 @@ import { User } from '../schemas/user.schema';
 @Service('DatabaseService')
 export class DatabaseService {
     public logger: Logger;
-    public db: Mongoose;
+    private db: Mongoose;
 
     constructor() {
         this.logger = getLogger('DatabaseService', ['service']);
@@ -127,7 +127,7 @@ export class DatabaseService {
      * @param {PaginateOptions} pagination
      * @returns {Promise<PaginateResult<IGroupDocument>>}
      */
-    public async filterGroup(conditions: IGroupFilter = {}, pagination: PaginateOptions):
+    public async filterGroup(conditions: IGroupFilter, pagination: PaginateOptions):
         Promise<PaginateResult<IGroupDocument>> {
         this.logger.debug('FilterGroup', { conditions, pagination });
         try {
@@ -200,13 +200,13 @@ export class DatabaseService {
 
     /**
      * Update user entry with given data
-     * @param {string} user User id
+     * @param {string} userId User id
      * @param {object} data Update data
      */
-    public async updateUser(user: string, data: object): Promise<void> {
-        this.logger.debug('UpdateUser', { user, data });
+    public async updateUser(userId: string, data: object): Promise<void> {
+        this.logger.debug('UpdateUser', { userId, data });
         try {
-            await User.findOneAndUpdate({ user }, data).exec();
+            await User.findOneAndUpdate({ user: userId }, data).exec();
         } catch (err) {
             this.logger.error('UpdateUser', err);
             throw err;
@@ -215,12 +215,12 @@ export class DatabaseService {
 
     /**
      * Remove user entry from database.
-     * @param {string} user : User id
+     * @param {string} userId : User id
      */
-    public async deleteUser(user: string): Promise<void> {
-        this.logger.debug('DeleteUser', { user });
+    public async deleteUser(userId: string): Promise<void> {
+        this.logger.debug('DeleteUser', { userId });
         try {
-            await User.findOneAndRemove({ user }).exec();
+            await User.findOneAndRemove({ user: userId }).exec();
         } catch (err) {
             this.logger.error('DeleteUser', err);
             throw err;
@@ -233,11 +233,18 @@ export class DatabaseService {
      * @param {PaginateOptions} pagination
      * @returns {Promise<PaginateResult<IUserDocument>>}
      */
-    public async filterUser(conditions: IUserFilter = {}, pagination: PaginateOptions):
+    public async filterUser(conditions: IUserFilter, pagination: PaginateOptions):
         Promise<PaginateResult<IUserDocument>> {
         this.logger.debug('FilterUser', { conditions, pagination });
         try {
             let query = User.find();
+            if (conditions.user) {
+                if (conditions.user.eq) {
+                    query = query.where('user', conditions.user);
+                } else if (conditions.user.in && conditions.user.in.length > 0) {
+                    query = query.where('user').in(conditions.user.in);
+                }
+            }
             if (typeof conditions.deleted === 'boolean') {
                 query = query.where('deleted', conditions.deleted);
             }
@@ -265,7 +272,7 @@ export class DatabaseService {
         }
     }
 
-    public compareQuery(
+    private compareQuery(
         query: DocumentQuery<any[], any>,
         path: string,
         filter: ICompareDateModel | ICompareNumberModel) {
