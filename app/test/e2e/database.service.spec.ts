@@ -17,7 +17,7 @@ before('Connect to Database', async () => {
     await database.connect(username, password, host, port);
 });
 
-beforeEach('Reset Database', async () => {
+const resetDatabase = async () => {
     try {
         await User.remove({}).exec();
     } catch (e) {
@@ -31,9 +31,20 @@ beforeEach('Reset Database', async () => {
         console.log('Reseting Group collection failed');
         throw e;
     }
-});
+};
 
-describe.only('Unit -> Services -> Database', () => {
+beforeEach('Reset Database', () => resetDatabase());
+
+describe('Unit -> Services -> Database', () => {
+
+    it('database should be clean', async () => {
+        const users = await User.find().count().exec();
+        expect(users).to.be.eq(0);
+
+        const groups = await Group.find().count().exec();
+        expect(groups).to.be.eq(0);
+    });
+
     it('should initialize database', async () => {
         const db = new DatabaseService();
         expect(db).to.be.an('object');
@@ -49,9 +60,8 @@ describe.only('Unit -> Services -> Database', () => {
     describe('Group', () => {
         describe('Create', () => {
             it('should create group with name', async () => {
-                const db = new DatabaseService();
                 const name = generateRandomString(4);
-                const group = await db.createGroup({name, slug: name.toLowerCase()});
+                const group = await database.createGroup({name, slug: name.toLowerCase()});
 
                 expect(group).to.be.instanceof(Group);
 
@@ -71,14 +81,13 @@ describe.only('Unit -> Services -> Database', () => {
 
         describe('Update', () => {
             it('should update group name', async () => {
-                const db = new DatabaseService();
                 const name = generateRandomString(5);
                 const newName = generateRandomString(5);
-                const group = await db.createGroup({name, slug: name.toLowerCase()});
+                const group = await database.createGroup({name, slug: name.toLowerCase()});
 
-                await db.updateGroup(group._id.toString(), {name: newName});
+                await database.updateGroup(group._id.toString(), {name: newName});
 
-                const updated = await db.findOneGroupBy({_id: group._id.toString()});
+                const updated = await database.findOneGroupBy({_id: group._id.toString()});
 
                 expect(updated.name).to.be.eq(newName);
             });
@@ -86,20 +95,1265 @@ describe.only('Unit -> Services -> Database', () => {
 
         describe('Delete', () => {
             it('should delete group', async () => {
-                const db = new DatabaseService();
                 const name = generateRandomString(10);
-                const group = await db.createGroup({name, slug: name.toLowerCase()});
+                const group = await database.createGroup({name, slug: name.toLowerCase()});
 
-                await db.deleteGroup(group._id.toString());
+                await database.deleteGroup(group._id.toString());
 
-                const deleted = await db.findOneGroupBy({_id: group._id.toString()});
+                const deleted = await database.findOneGroupBy({_id: group._id.toString()});
                 expect(deleted).to.be.eq(null);
             });
         });
 
         describe('FilterGroup', () => {
-            it('should return only deleted groups', async () => {
+            describe('Delete', () => {
+                it('should return only deleted groups', async () => {
+                    const group1 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5)
+                    });
+                    await group1.validate();
+                    await group1.save();
 
+                    const group2 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5)
+                    });
+                    await group2.validate();
+                    await group2.save();
+
+                    const group3 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        deleted: true,
+                        deletedAt: new Date()
+                    });
+                    await group3.validate();
+                    await group3.save();
+
+                    const result = await database.filterGroup({deleted: true});
+
+                    expect(result).to.be.an('object');
+                    expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                    expect(result.docs).to.be.an('array');
+                    expect(result.docs).to.have.lengthOf(1);
+
+                    expect(result.total).to.be.eq(1);
+                    expect(result.limit).to.be.eq(10);
+                    expect(result.offset).to.be.eq(0);
+                    expect(result.page).to.be.eq(1);
+                    expect(result.pages).to.be.eq(1);
+
+                    const group = result.docs[0];
+
+                    expect(group).to.instanceOf(Group);
+
+                    expect(group._id.toString()).to.be.eq(group3._id.toString());
+                });
+
+                it('should return only not deleted groups', async () => {
+                    const group1 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5)
+                    });
+                    await group1.validate();
+                    await group1.save();
+
+                    const group2 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        deleted: true,
+                        deletedAt: new Date()
+                    });
+                    await group2.validate();
+                    await group2.save();
+
+                    const group3 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        deleted: true,
+                        deletedAt: new Date()
+                    });
+                    await group3.validate();
+                    await group3.save();
+
+                    const result = await database.filterGroup({deleted: false});
+
+                    expect(result).to.be.an('object');
+                    expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                    expect(result.docs).to.be.an('array');
+                    expect(result.docs).to.have.lengthOf(1);
+
+                    expect(result.total).to.be.eq(1);
+                    expect(result.limit).to.be.eq(10);
+                    expect(result.offset).to.be.eq(0);
+                    expect(result.page).to.be.eq(1);
+                    expect(result.pages).to.be.eq(1);
+
+                    const group = result.docs[0];
+
+                    expect(group).to.instanceOf(Group);
+
+                    expect(group._id.toString()).to.be.eq(group1._id.toString());
+                });
+            });
+
+            describe('DeletedAt', () => {
+                describe('EQ', () => {
+                    it('should return groups eq to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 2, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({deletedAt: {eq: date1}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const group = result.docs[0];
+
+                        expect(group).to.instanceOf(Group);
+
+                        expect(group._id.toString()).to.be.eq(group1._id.toString());
+                    });
+                });
+
+                describe('GT', () => {
+                    it('should return groups after than to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({deletedAt: {gt: new Date(2017, 0, 2, 0, 0, 0)}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const group = result.docs[0];
+
+                        expect(group).to.instanceOf(Group);
+
+                        expect(group._id.toString()).to.be.eq(group2._id.toString());
+                    });
+                });
+
+                describe('GTE', () => {
+                    it('should return groups after or equal than to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({deletedAt: {gte: date1}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(2);
+
+                        expect(result.total).to.be.eq(2);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                            group1._id.toString(),
+                            group2._id.toString()
+                        ]);
+                    });
+                });
+
+                describe('LT', () => {
+                    it('should return groups before than date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({deletedAt: {lt: new Date(2017, 0, 2, 0, 0, 0)}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const doc = result.docs[0];
+
+                        expect(doc).to.be.instanceof(Group);
+                        expect(doc._id.toString()).to.be.eq(group1._id.toString());
+                    });
+                });
+
+                describe('LTE', () => {
+                    it('should return groups before or equal than to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            deleted: true,
+                            deletedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({deletedAt: {lte: date2}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(2);
+
+                        expect(result.total).to.be.eq(2);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                            group1._id.toString(),
+                            group2._id.toString()
+                        ]);
+                    });
+                });
+            });
+
+            describe('CreatedAt', () => {
+                describe('EQ', () => {
+                    it('should return groups eq to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 2, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({createdAt: {eq: date1}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const group = result.docs[0];
+
+                        expect(group).to.instanceOf(Group);
+
+                        expect(group._id.toString()).to.be.eq(group1._id.toString());
+                    });
+                });
+
+                describe('GT', () => {
+                    it('should return groups after than to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({createdAt: {gt: new Date(2017, 0, 2, 0, 0, 0)}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const group = result.docs[0];
+
+                        expect(group).to.instanceOf(Group);
+
+                        expect(group._id.toString()).to.be.eq(group2._id.toString());
+                    });
+                });
+
+                describe('GTE', () => {
+                    it('should return groups after or equal than to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({createdAt: {gte: date1}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(2);
+
+                        expect(result.total).to.be.eq(2);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                            group1._id.toString(),
+                            group2._id.toString()
+                        ]);
+                    });
+                });
+
+                describe('LT', () => {
+                    it('should return groups before than date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({createdAt: {lt: new Date(2017, 0, 2, 0, 0, 0)}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const doc = result.docs[0];
+
+                        expect(doc).to.be.instanceof(Group);
+                        expect(doc._id.toString()).to.be.eq(group1._id.toString());
+                    });
+                });
+
+                describe('LTE', () => {
+                    it('should return groups before or equal than to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            createdAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({createdAt: {lte: date2}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(2);
+
+                        expect(result.total).to.be.eq(2);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                            group1._id.toString(),
+                            group2._id.toString()
+                        ]);
+                    });
+                });
+            });
+
+            describe('UpdatedAt', () => {
+                describe('EQ', () => {
+                    it('should return groups eq to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 2, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({updatedAt: {eq: date1}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const group = result.docs[0];
+
+                        expect(group).to.instanceOf(Group);
+
+                        expect(group._id.toString()).to.be.eq(group1._id.toString());
+                    });
+                });
+
+                describe('GT', () => {
+                    it('should return groups after than to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({updatedAt: {gt: new Date(2017, 0, 2, 0, 0, 0)}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const group = result.docs[0];
+
+                        expect(group).to.instanceOf(Group);
+
+                        expect(group._id.toString()).to.be.eq(group2._id.toString());
+                    });
+                });
+
+                describe('GTE', () => {
+                    it('should return groups after or equal than to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({updatedAt: {gte: date1}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(2);
+
+                        expect(result.total).to.be.eq(2);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                            group1._id.toString(),
+                            group2._id.toString()
+                        ]);
+                    });
+                });
+
+                describe('LT', () => {
+                    it('should return groups before than date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({updatedAt: {lt: new Date(2017, 0, 2, 0, 0, 0)}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const doc = result.docs[0];
+
+                        expect(doc).to.be.instanceof(Group);
+                        expect(doc._id.toString()).to.be.eq(group1._id.toString());
+                    });
+                });
+
+                describe('LTE', () => {
+                    it('should return groups before or equal than to date', async () => {
+                        const date1 = new Date(2017, 0, 1, 0, 0, 0);
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date1
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const date2 = new Date(2017, 0, 3, 0, 0, 0);
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            updatedAt: date2
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({updatedAt: {lte: date2}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(2);
+
+                        expect(result.total).to.be.eq(2);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                            group1._id.toString(),
+                            group2._id.toString()
+                        ]);
+                    });
+                });
+            });
+
+            describe('Count', () => {
+                describe('EQ', () => {
+                    it('should return groups eq to date', async () => {
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 3
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 5
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({count: {eq: 3}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const group = result.docs[0];
+
+                        expect(group).to.instanceOf(Group);
+
+                        expect(group._id.toString()).to.be.eq(group1._id.toString());
+                    });
+                });
+
+                describe('GT', () => {
+                    it('should return groups after than to date', async () => {
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 3
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 5
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({count: {gt: 4}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const group = result.docs[0];
+
+                        expect(group).to.instanceOf(Group);
+
+                        expect(group._id.toString()).to.be.eq(group2._id.toString());
+                    });
+                });
+
+                describe('GTE', () => {
+                    it('should return groups after or equal than', async () => {
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 3
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 5
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const group3 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 10
+                        });
+                        await group3.validate();
+                        await group3.save();
+
+                        const result = await database.filterGroup({count: {gte: 5}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(2);
+
+                        expect(result.total).to.be.eq(2);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                            group2._id.toString(),
+                            group3._id.toString()
+                        ]);
+                    });
+                });
+
+                describe('LT', () => {
+                    it('should return groups before than', async () => {
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 3
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 5
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const result = await database.filterGroup({count: {lt: 5}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(1);
+
+                        expect(result.total).to.be.eq(1);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        const doc = result.docs[0];
+
+                        expect(doc).to.be.instanceof(Group);
+                        expect(doc._id.toString()).to.be.eq(group1._id.toString());
+                    });
+                });
+
+                describe('LTE', () => {
+                    it('should return groups before or equal than', async () => {
+                        const group1 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 3
+                        });
+                        await group1.validate();
+                        await group1.save();
+
+                        const group2 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 5
+                        });
+                        await group2.validate();
+                        await group2.save();
+
+                        const group3 = new Group({
+                            name: generateRandomString(5),
+                            slug: generateRandomString(5),
+                            count: 10
+                        });
+                        await group3.validate();
+                        await group3.save();
+
+                        const result = await database.filterGroup({count: {lte: 5}});
+
+                        expect(result).to.be.an('object');
+                        expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                        expect(result.docs).to.be.an('array');
+                        expect(result.docs).to.have.lengthOf(2);
+
+                        expect(result.total).to.be.eq(2);
+                        expect(result.limit).to.be.eq(10);
+                        expect(result.offset).to.be.eq(0);
+                        expect(result.page).to.be.eq(1);
+                        expect(result.pages).to.be.eq(1);
+
+                        expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                            group1._id.toString(),
+                            group2._id.toString()
+                        ]);
+                    });
+                });
+            });
+
+            describe('Name', () => {
+                it('should return Group with requested name', async () => {
+                    const name = generateRandomString(5);
+                    const group1 = new Group({
+                        name,
+                        slug: generateRandomString(5)
+                    });
+                    await group1.validate();
+                    await group1.save();
+
+                    const group2 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5)
+                    });
+                    await group2.validate();
+                    await group2.save();
+
+                    const result = await database.filterGroup({name});
+
+                    expect(result).to.be.an('object');
+                    expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                    expect(result.docs).to.be.an('array');
+                    expect(result.docs).to.have.lengthOf(1);
+
+                    expect(result.total).to.be.eq(1);
+                    expect(result.limit).to.be.eq(10);
+                    expect(result.offset).to.be.eq(0);
+                    expect(result.page).to.be.eq(1);
+                    expect(result.pages).to.be.eq(1);
+
+                    const doc = result.docs[0];
+                    expect(doc).to.be.instanceof(Group);
+                    expect(doc._id.toString()).to.be.eq(group1._id.toString());
+                });
+            });
+
+            describe('Slug', () => {
+                it('should return Group with requested slug', async () => {
+                    const slug = generateRandomString(5);
+                    const group1 = new Group({
+                        name: generateRandomString(5),
+                        slug
+                    });
+                    await group1.validate();
+                    await group1.save();
+
+                    const group2 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5)
+                    });
+                    await group2.validate();
+                    await group2.save();
+
+                    const result = await database.filterGroup({slug});
+
+                    expect(result).to.be.an('object');
+                    expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                    expect(result.docs).to.be.an('array');
+                    expect(result.docs).to.have.lengthOf(1);
+
+                    expect(result.total).to.be.eq(1);
+                    expect(result.limit).to.be.eq(10);
+                    expect(result.offset).to.be.eq(0);
+                    expect(result.page).to.be.eq(1);
+                    expect(result.pages).to.be.eq(1);
+
+                    const doc = result.docs[0];
+                    expect(doc).to.be.instanceof(Group);
+                    expect(doc._id.toString()).to.be.eq(group1._id.toString());
+                });
+            });
+
+            describe('Users', () => {
+                it('should return group with requested user', async () => {
+                    const user1 = generateRandomString(24);
+                    const user2 = generateRandomString(24);
+                    const user3 = generateRandomString(24);
+                    const user4 = generateRandomString(24);
+
+                    const group1 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        users: [user1, user3],
+                        count: 1
+                    });
+                    await group1.validate();
+                    await group1.save();
+
+                    const group2 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        users: [user2, user4],
+                        count: 1
+                    });
+                    await group2.validate();
+                    await group2.save();
+
+                    const result = await database.filterGroup({users: [user1]});
+
+                    expect(result).to.be.an('object');
+                    expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                    expect(result.docs).to.be.an('array');
+                    expect(result.docs).to.have.lengthOf(1);
+
+                    expect(result.total).to.be.eq(1);
+                    expect(result.limit).to.be.eq(10);
+                    expect(result.offset).to.be.eq(0);
+                    expect(result.page).to.be.eq(1);
+                    expect(result.pages).to.be.eq(1);
+
+                    const doc = result.docs[0];
+                    expect(doc).to.be.instanceof(Group);
+                    expect(doc._id.toString()).to.be.eq(group1._id.toString());
+                });
+
+                it('should return both groups with requested user', async () => {
+                    const user1 = generateRandomString(24);
+                    const user2 = generateRandomString(24);
+                    const user3 = generateRandomString(24);
+
+                    const group1 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        users: [user1, user2],
+                        count: 2
+                    });
+                    await group1.validate();
+                    await group1.save();
+
+                    const group2 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        users: [user2, user3],
+                        count: 2
+                    });
+                    await group2.validate();
+                    await group2.save();
+
+                    const group3 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        users: [user1, user3],
+                        count: 2
+                    });
+                    await group3.validate();
+                    await group3.save();
+
+                    const result = await database.filterGroup({users: [user2]});
+
+                    expect(result).to.be.an('object');
+                    expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                    expect(result.docs).to.be.an('array');
+                    expect(result.docs).to.have.lengthOf(2);
+
+                    expect(result.total).to.be.eq(2);
+                    expect(result.limit).to.be.eq(10);
+                    expect(result.offset).to.be.eq(0);
+                    expect(result.page).to.be.eq(1);
+                    expect(result.pages).to.be.eq(1);
+
+                    expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                        group1._id.toString(),
+                        group2._id.toString(),
+                    ]);
+                });
+
+                it('should return both groups with requested user', async () => {
+                    const user1 = generateRandomString(24);
+                    const user2 = generateRandomString(24);
+                    const user3 = generateRandomString(24);
+                    const user4 = generateRandomString(24);
+
+                    const group1 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        users: [user1, user2, user3],
+                        count: 2
+                    });
+                    await group1.validate();
+                    await group1.save();
+
+                    const group2 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        users: [user2, user3],
+                        count: 2
+                    });
+                    await group2.validate();
+                    await group2.save();
+
+                    const group3 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        users: [user1, user3, user4],
+                        count: 3
+                    });
+                    await group3.validate();
+                    await group3.save();
+
+                    const group4 = new Group({
+                        name: generateRandomString(5),
+                        slug: generateRandomString(5),
+                        users: [user1, user4],
+                        count: 2
+                    });
+                    await group4.validate();
+                    await group4.save();
+
+                    const result = await database.filterGroup({users: [user2, user3]});
+
+                    expect(result).to.be.an('object');
+                    expect(result).to.have.keys(['docs', 'total', 'limit', 'offset', 'page', 'pages']);
+
+                    expect(result.docs).to.be.an('array');
+                    expect(result.docs).to.have.lengthOf(3);
+
+                    expect(result.total).to.be.eq(3);
+                    expect(result.limit).to.be.eq(10);
+                    expect(result.offset).to.be.eq(0);
+                    expect(result.page).to.be.eq(1);
+                    expect(result.pages).to.be.eq(1);
+
+                    expect(result.docs.map(d => d._id.toString())).to.be.deep.eq([
+                        group1._id.toString(),
+                        group2._id.toString(),
+                        group3._id.toString()
+                    ]);
+                });
+            });
+        });
+
+        describe('FindOneGroupBy', () => {
+            it('should find groups by _id', async () => {
+                const group1 = new Group({
+                    name: generateRandomString(5),
+                    slug: generateRandomString(5)
+                });
+                await group1.validate();
+                await group1.save();
+
+                const group2 = new Group({
+                    name: generateRandomString(5),
+                    slug: generateRandomString(5)
+                });
+                await group2.validate();
+                await group2.save();
+
+                const doc = await database.findOneGroupBy({_id: group1._id.toString()});
+
+                expect(doc).to.be.an('object');
+                expect(doc).to.be.instanceof(Group);
+                expect(doc._id.toString()).to.be.eq(group1._id.toString());
+            });
+
+            it('should find groups by name', async () => {
+                const name = generateRandomString(5);
+                const group1 = new Group({
+                    name,
+                    slug: generateRandomString(5)
+                });
+                await group1.validate();
+                await group1.save();
+
+                const group2 = new Group({
+                    name: generateRandomString(5),
+                    slug: generateRandomString(5)
+                });
+                await group2.validate();
+                await group2.save();
+
+                const doc = await database.findOneGroupBy({name});
+
+                expect(doc).to.be.an('object');
+                expect(doc).to.be.instanceof(Group);
+                expect(doc._id.toString()).to.be.eq(group1._id.toString());
+            });
+
+            it('should find groups by slug', async () => {
+                const slug = generateRandomString(5);
+                const group1 = new Group({
+                    name: generateRandomString(5),
+                    slug
+                });
+                await group1.validate();
+                await group1.save();
+
+                const group2 = new Group({
+                    name: generateRandomString(5),
+                    slug: generateRandomString(5)
+                });
+                await group2.validate();
+                await group2.save();
+
+                const doc = await database.findOneGroupBy({slug});
+
+                expect(doc).to.be.an('object');
+                expect(doc).to.be.instanceof(Group);
+                expect(doc._id.toString()).to.be.eq(group1._id.toString());
             });
         });
     });
@@ -107,9 +1361,8 @@ describe.only('Unit -> Services -> Database', () => {
     describe('User', () => {
         describe('Create', () => {
             it('should create user entry', async () => {
-                const db = new DatabaseService();
                 const id = generateRandomString(24);
-                const user = await db.createUser({
+                const user = await database.createUser({
                     user: id,
                     groups: [
                         '2'.repeat(24),
@@ -142,8 +1395,7 @@ describe.only('Unit -> Services -> Database', () => {
 
         describe('Update', () => {
             it('should update user entry', async () => {
-                const db = new DatabaseService();
-                const user = await db.createUser({
+                const user = await database.createUser({
                     user: generateRandomString(24)
                 });
 
@@ -151,7 +1403,7 @@ describe.only('Unit -> Services -> Database', () => {
                 expect(user.groups).to.have.lengthOf(0);
                 expect(user.count).to.be.eq(0);
 
-                await db.updateUser(user.user, {
+                await database.updateUser(user.user, {
                     groups: [
                         '2'.repeat(24),
                         '3'.repeat(24)
@@ -159,7 +1411,7 @@ describe.only('Unit -> Services -> Database', () => {
                     count: 2
                 });
 
-                const updated = await db.findOneUserBy({user: user.user});
+                const updated = await database.findOneUserBy({user: user.user});
 
                 expect(updated._id.toString()).to.be.eq(user._id.toString());
 
@@ -174,20 +1426,22 @@ describe.only('Unit -> Services -> Database', () => {
 
         describe('Delete', () => {
             it('should delete user entry', async () => {
-                const db = new DatabaseService();
-                const user = await db.createUser({
+                const user = await database.createUser({
                     user: generateRandomString(24)
                 });
 
                 expect(user).to.be.instanceof(User);
 
-                await db.deleteUser(user.user);
+                await database.deleteUser(user.user);
 
-                const isDeleted = await db.findOneUserBy({_id: user._id.toString()});
+                const isDeleted = await database.findOneUserBy({_id: user._id.toString()});
                 expect(isDeleted).to.be.eq(null);
             });
         });
     });
 });
 
-after('Disconnect from Database', async () => await database.disconnect());
+after('Disconnect from Database', async () => {
+    await resetDatabase();
+    await database.disconnect();
+});
