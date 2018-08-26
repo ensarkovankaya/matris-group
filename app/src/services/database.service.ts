@@ -127,7 +127,7 @@ export class DatabaseService {
      * @param {PaginateOptions} pagination
      * @returns {Promise<PaginateResult<IGroupDocument>>}
      */
-    public async filterGroup(conditions: IGroupFilter, pagination: PaginateOptions):
+    public async filterGroup(conditions: IGroupFilter, pagination: PaginateOptions = {}):
         Promise<PaginateResult<IGroupDocument>> {
         this.logger.debug('FilterGroup', { conditions, pagination });
         try {
@@ -233,7 +233,7 @@ export class DatabaseService {
      * @param {PaginateOptions} pagination
      * @returns {Promise<PaginateResult<IUserDocument>>}
      */
-    public async filterUser(conditions: IUserFilter, pagination: PaginateOptions):
+    public async filterUser(conditions: IUserFilter, pagination: PaginateOptions = {}):
         Promise<PaginateResult<IUserDocument>> {
         this.logger.debug('FilterUser', { conditions, pagination });
         try {
