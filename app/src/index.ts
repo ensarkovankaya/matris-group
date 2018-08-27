@@ -17,7 +17,7 @@ const bootstrap = async (port: number, host: string) => {
 
     express.config(); // Configure
     express.routes(); // Configure Routes
-    express.connect(); // Connect to database
+    await express.connect(); // Connect to database
 
     // Create http server
     const server = http.createServer(express.app);
