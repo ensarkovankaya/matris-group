@@ -1,7 +1,10 @@
+import { PaginateOptions, PaginateResult } from 'mongoose';
 import slugify from 'slugify';
 import { Service } from "typedi";
 import { GroupNotFound, InvalidArgument } from '../errors';
+import { Group } from '../graphql/schemas/group.schema';
 import { getLogger, Logger } from "../logger";
+import { IGroupFilter } from '../models/group.filter.model';
 import { IGroup, IGroupDocument } from '../models/group.model';
 import { DatabaseService } from './database.service';
 
@@ -202,6 +205,22 @@ export class GroupService {
      */
     public normalize(value: string): string {
         return slugify(value);
+    }
+
+    /**
+     * Returns list of Groups with given filter. If not filter will given returns all groups.
+     * @param {IGroupFilter} filters Filters
+     * @returns {Promise<PaginateResult<IGroup>>}
+     */
+    public async list(filters: IGroupFilter = {}, pagination: PaginateOptions = { limit: 10 }):
+        Promise<PaginateResult<IGroup>> {
+        try {
+            const result = await this.db.filterGroup(filters, pagination);
+            return {...result, docs: result.docs.map(this.toGroup)};
+        } catch (e) {
+            this.logger.error('List', e);
+            throw e;
+        }
     }
 
     /**
