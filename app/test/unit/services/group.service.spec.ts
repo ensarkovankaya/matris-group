@@ -17,7 +17,6 @@ describe('Unit -> Services -> GroupService', () => {
         expect(service).to.be.instanceof(GroupService);
         expect(service.toGroup).to.be.a('function');
         expect(service.get).to.be.a('function');
-        expect(service.getUserGroups).to.be.a('function');
         expect(service.create).to.be.a('function');
         expect(service.delete).to.be.a('function');
         expect(service.undelete).to.be.a('function');
@@ -724,96 +723,6 @@ describe('Unit -> Services -> GroupService', () => {
             expect(user.groups).to.have.lengthOf(1);
             expect(user.groups).to.be.deep.eq(['2'.repeat(24)]);
             expect(user.updatedAt).to.be.gt(u.updatedAt);
-        });
-    });
-
-    describe('Paginate', () => {
-        it('should paginate with limit 10', () => {
-            const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-            const service = new GroupService({} as any);
-            const result = service.paginate(data, {limit: 10});
-            expect(result).to.be.an('object');
-            expect(result).to.have.keys(['docs', 'total', 'limit', 'page', 'pages', 'offset']);
-            expect(result.total).to.be.eq(15);
-            expect(result.page).to.be.eq(1);
-            expect(result.pages).to.be.eq(2);
-            expect(result.offset).to.be.eq(0);
-            expect(result.docs).to.have.lengthOf(10);
-            expect(result.docs).to.deep.eq([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
-        });
-        it('should return page 2', () => {
-            const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-            const service = new GroupService({} as any);
-            const result = service.paginate(data, {limit: 10, page: 2});
-            expect(result).to.be.an('object');
-            expect(result).to.have.keys(['docs', 'total', 'limit', 'page', 'pages', 'offset']);
-            expect(result.total).to.be.eq(15);
-            expect(result.page).to.be.eq(2);
-            expect(result.pages).to.be.eq(2);
-            expect(result.offset).to.be.eq(0);
-            expect(result.docs).to.have.lengthOf(5);
-            expect(result.docs).to.deep.eq([11, 12, 13, 14, 15]);
-        });
-        it('should offset', () => {
-            const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-            const service = new GroupService({} as any);
-            const result = service.paginate(data, {limit: 10, offset: 2});
-            expect(result).to.be.an('object');
-            expect(result).to.have.keys(['docs', 'total', 'limit', 'page', 'pages', 'offset']);
-            expect(result.total).to.be.eq(13);
-            expect(result.page).to.be.eq(1);
-            expect(result.pages).to.be.eq(2);
-            expect(result.offset).to.be.eq(2);
-            expect(result.docs).to.have.lengthOf(10);
-            expect(result.docs).to.deep.eq([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-        });
-        it('should raise PaginationError', () => {
-            try {
-                const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-                const service = new GroupService({} as any);
-                service.paginate(data, {limit: 10, page: 5});
-                throw new ShouldNotSucceed();
-            } catch (e) {
-                expect(e.name).to.be.eq('PaginationError');
-            }
-        });
-    });
-
-    describe('GetUserGroups', () => {
-        it('should return user groups', async () => {
-            const g1 = new Group({name: 'G1', slug: 'g1', count: 1, users: ['1'.repeat(24)]});
-            const g2 = new Group({name: 'G2', slug: 'g2', count: 2, users: ['1'.repeat(24), '2'.repeat(24)]});
-            const g3 = new Group({name: 'G3', slug: 'g3'});
-            const u = new User({id: '1'.repeat(24), count: 2, groups: [g1._id.toString(), g2._id.toString()]});
-            const db = new MockDatabase([g1, g2, g3], [u]);
-            const service = new GroupService(db as any);
-
-            const result = await service.getUserGroups('1'.repeat(24));
-            expect(result).to.be.an('object');
-            expect(result).to.have.keys(['docs', 'total', 'limit', 'page', 'pages', 'offset']);
-            expect(result.total).to.be.eq(2);
-            expect(result.page).to.be.eq(1);
-            expect(result.pages).to.be.eq(1);
-            expect(result.offset).to.be.eq(0);
-            expect(result.docs).to.have.lengthOf(2);
-            expect(result.docs.map(d => d.id)).to.deep.eq([g1._id.toString(), g2._id.toString()]);
-        });
-
-        it('should return no groups for not existing user', async () => {
-            const g1 = new Group({name: 'G1', slug: 'g1', count: 1, users: ['3'.repeat(24)]});
-            const g2 = new Group({name: 'G2', slug: 'g2', count: 2, users: ['2'.repeat(24), '3'.repeat(24)]});
-            const g3 = new Group({name: 'G3', slug: 'g3'});
-            const db = new MockDatabase([g1, g2, g3]);
-            const service = new GroupService(db as any);
-            const result = await service.getUserGroups('1'.repeat(24));
-
-            expect(result).to.be.an('object');
-            expect(result).to.have.keys(['docs', 'total', 'limit', 'page', 'pages', 'offset']);
-            expect(result.total).to.be.eq(0);
-            expect(result.page).to.be.eq(1);
-            expect(result.pages).to.be.eq(1);
-            expect(result.offset).to.be.eq(0);
-            expect(result.docs).to.have.lengthOf(0);
         });
     });
 
