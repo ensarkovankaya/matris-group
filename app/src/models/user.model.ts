@@ -13,7 +13,7 @@ export interface IUserDocument extends Document {
 
 export interface IUser {
     id: string;
-    groups: IGroup[];
+    groups: string[];
     count: number;
     createdAt: Date;
     updatedAt: Date;
