@@ -3,7 +3,7 @@ import { Field, ObjectType } from 'type-graphql';
 import { Group } from './group.schema';
 
 @ObjectType()
-export class ListResultSchema implements PaginateResult<Group> {
+export class GroupListResultSchema implements PaginateResult<Group> {
     @Field(type => [Group], {description: 'Groups'})
     public docs: Group[];
 
