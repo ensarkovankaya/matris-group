@@ -25,43 +25,69 @@ export class GroupResolver {
     public async list(
         @Arg('filters', { nullable: true }) filters: GroupFilterInput = new GroupFilterInput(),
         @Arg('pagination', { nullable: true }) pagination: PaginationInput = new PaginationInput()) {
-        this.logger.debug('List', { filters, pagination });
-        await filters.validate();
-        await pagination.validate();
-        return await this.gs.list(filters, pagination);
+        try {
+            this.logger.debug('List', { filters, pagination });
+            await filters.validate();
+            await pagination.validate();
+            return await this.gs.list(filters, pagination);
+        } catch (e) {
+            this.logger.error('List', e, {filters, pagination});
+            throw e;
+        }
     }
 
     @Query(returnType => Group, { nullable: true, description: 'Get one group by id, name or slug.' })
-    public async get(@Args() by: GroupGetArgs,
-                     @Arg('deleted', {
-                         nullable: true,
-                         description: 'Is group deleted. Default false.'
-                        }) deleted: boolean = false): Promise<Group | null> {
-        this.logger.debug('Get', { by });
-        await by.validate();
-        return await this.gs.get(by, deleted);
+    public async get(
+        @Args() by: GroupGetArgs,
+        @Arg('deleted', {
+            nullable: true,
+            description: 'Is group deleted. Default false.'
+        }) deleted: boolean = false): Promise<Group | null> {
+        try {
+            this.logger.debug('Get', { by });
+            await by.validate();
+            return await this.gs.get(by, deleted);
+        } catch (e) {
+            this.logger.error('Get', e, { by });
+            throw e;
+        }
     }
 
-    @Mutation(returnType => Group, {description: 'Create Group.'})
+    @Mutation(returnType => Group, { description: 'Create Group.' })
     public async create(@Args() data: CreateGroupInput): Promise<Group> {
-        this.logger.debug('Create', { data });
-        await data.validate();
-        return await this.gs.create(data.name);
+        try {
+            this.logger.debug('Create', { data });
+            await data.validate();
+            return await this.gs.create(data.name);
+        } catch (e) {
+            this.logger.error('Create', e, { data });
+            throw e;
+        }
     }
 
-    @Mutation(returnType => Group, {description: 'Update Group.'})
+    @Mutation(returnType => Group, { description: 'Update Group.' })
     public async update(@Args() data: UpdateGroupInput): Promise<Group> {
-        this.logger.debug('Create', { data });
-        await data.validate();
-        await this.gs.update(data.id, data.name);
-        return this.gs.get({id: data.id});
+        try {
+            this.logger.debug('Create', { data });
+            await data.validate();
+            await this.gs.update(data.id, data.name);
+            return this.gs.get({ id: data.id });
+        } catch (e) {
+            this.logger.error('Update', e, { data });
+            throw e;
+        }
     }
 
-    @Mutation(returnType => Boolean, {description: 'Delete Group'})
+    @Mutation(returnType => Boolean, { description: 'Delete Group' })
     public async delete(@Args() data: DeleteGroupInput): Promise<boolean> {
-        this.logger.debug('Delete', { data });
-        await data.validate();
-        await this.gs.delete(data.id);
-        return true;
+        try {
+            this.logger.debug('Delete', { data });
+            await data.validate();
+            await this.gs.delete(data.id);
+            return true;
+        } catch (e) {
+            this.logger.error('Delete', e, { data });
+            throw e;
+        }
     }
 }
