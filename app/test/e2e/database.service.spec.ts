@@ -1362,8 +1362,7 @@ describe('Unit -> Services -> Database', () => {
         describe('Create', () => {
             it('should create user entry', async () => {
                 const id = generateRandomString(24);
-                const user = await database.createUser({
-                    user: id,
+                const user = await database.createUser(id, {
                     groups: [
                         '2'.repeat(24),
                         '3'.repeat(24)
@@ -1376,7 +1375,7 @@ describe('Unit -> Services -> Database', () => {
                 expect(user._id).to.be.an('object');
                 expect(user._id.toString()).to.have.lengthOf(24);
 
-                expect(user.user).to.be.eq(id);
+                expect(user.id).to.be.eq(id);
 
                 expect(user.groups).to.be.an('array');
                 expect(user.groups).to.be.deep.eq([
@@ -1395,15 +1394,13 @@ describe('Unit -> Services -> Database', () => {
 
         describe('Update', () => {
             it('should update user entry', async () => {
-                const user = await database.createUser({
-                    user: generateRandomString(24)
-                });
+                const user = await database.createUser(generateRandomString(24), {});
 
                 expect(user.groups).to.be.an('array');
                 expect(user.groups).to.have.lengthOf(0);
                 expect(user.count).to.be.eq(0);
 
-                await database.updateUser(user.user, {
+                await database.updateUser(user.id, {
                     groups: [
                         '2'.repeat(24),
                         '3'.repeat(24)
@@ -1411,7 +1408,7 @@ describe('Unit -> Services -> Database', () => {
                     count: 2
                 });
 
-                const updated = await database.findOneUserBy({user: user.user});
+                const updated = await database.findOneUserBy({id: user.id});
 
                 expect(updated._id.toString()).to.be.eq(user._id.toString());
 
@@ -1426,13 +1423,11 @@ describe('Unit -> Services -> Database', () => {
 
         describe('Delete', () => {
             it('should delete user entry', async () => {
-                const user = await database.createUser({
-                    user: generateRandomString(24)
-                });
+                const user = await database.createUser(generateRandomString(24), {});
 
                 expect(user).to.be.instanceof(User);
 
-                await database.deleteUser(user.user);
+                await database.deleteUser(user.id);
 
                 const isDeleted = await database.findOneUserBy({_id: user._id.toString()});
                 expect(isDeleted).to.be.eq(null);
