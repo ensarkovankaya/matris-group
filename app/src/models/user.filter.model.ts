@@ -1,10 +1,7 @@
 import { ICompareDateModel, ICompareNumberModel } from './compare.date.model';
 
 export interface IUserFilter {
-    user?: {
-        eq?: string;
-        in?: string[];
-    };
+    user?: string;
     count?: ICompareNumberModel;
     createdAt?: ICompareDateModel;
     updatedAt?: ICompareDateModel;
