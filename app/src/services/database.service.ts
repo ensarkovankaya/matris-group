@@ -208,7 +208,7 @@ export class DatabaseService {
     public async updateUser(userId: string, data: object): Promise<void> {
         this.logger.debug('UpdateUser', { userId, data });
         try {
-            await User.findOneAndUpdate({ user: userId }, data).exec();
+            await User.findOneAndUpdate({ id: userId }, data).exec();
         } catch (err) {
             this.logger.error('UpdateUser', err);
             throw err;
@@ -222,7 +222,7 @@ export class DatabaseService {
     public async deleteUser(userId: string): Promise<void> {
         this.logger.debug('DeleteUser', { userId });
         try {
-            await User.findOneAndRemove({ user: userId }).exec();
+            await User.findOneAndRemove({ id: userId }).exec();
         } catch (err) {
             this.logger.error('DeleteUser', err);
             throw err;
