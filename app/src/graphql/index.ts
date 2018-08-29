@@ -6,6 +6,7 @@ import { isProduction } from '../utils';
 
 import { OptionsData } from 'express-graphql';
 import * as graphqlHTTP from 'express-graphql';
+import { GroupResolver } from './resolvers/group.resolver';
 import { formatArgumentValidationError } from './validation.error.handler';
 
 useContainer(Container);
@@ -15,7 +16,7 @@ const logger = getLogger('GraphQL');
 export const getRootSchema = (): GraphQLSchema => {
     try {
         return buildSchemaSync({
-            resolvers: []
+            resolvers: [GroupResolver]
         });
     } catch (err) {
         logger.error('Root schema creation failed', err);
