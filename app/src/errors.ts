@@ -22,3 +22,7 @@ export class UserAlreadyInGroup extends Error {
 export class UserNotFound extends Error {
     public name = 'UserNotFound';
 }
+
+export class PaginationError extends Error {
+    public name = 'PaginationError';
+}
