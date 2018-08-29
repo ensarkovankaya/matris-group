@@ -24,7 +24,6 @@ interface IUserFilgerConditions extends IUserFilter {
 @Service('MockDatabase')
 export class MockDatabase {
 
-    public async;
     private logger: Logger;
     private db: boolean = false;
 
@@ -100,9 +99,14 @@ export class MockDatabase {
         }
 
         try {
-            const updated = new Group({ ...group.toObject(), ...data, updatedAt: new Date() });
+            const updated = new Group({
+                ...group.toObject(),
+                ...data,
+                createdAt: group.createdAt,
+                updatedAt: new Date()
+            });
             await updated.validate();
-            this.groups.map(g => g._id.toSting() === id ? updated : g);
+            this.groups = this.groups.map(g => g._id.toString() === id ? updated : g);
         } catch (err) {
             this.logger.error('UpdateGroup', err);
             throw err;
@@ -150,18 +154,23 @@ export class MockDatabase {
      * @param {object} data Update data
      */
     public async updateUser(userId: string, data: object): Promise<void> {
-        this.logger.debug('UpdateUser', { userId, data });
+        this.logger.debug('Updating user entery', { userId, data });
 
-        const user = this.users.find(u => u._id.toString() === userId);
+        const user = this.users.find(u => u.user === userId);
 
         if (!user) {
             throw new UserNotFound();
         }
 
         try {
-            const updated = new User({ ...user.toObject(), ...data, updatedAt: new Date() });
+            const updated = new User({
+                ...user.toObject(),
+                ...data,
+                createdAt: user.createdAt,
+                updatedAt: new Date()
+            });
             await updated.validate();
-            this.users = this.users.map(u => u._id.toString() === userId ? updated : u);
+            this.users = this.users.map(u => u._id.toString() === user._id.toString() ? updated : u);
         } catch (err) {
             this.logger.error('UpdateUser', err);
             throw err;
@@ -183,6 +192,21 @@ export class MockDatabase {
     }
 
     /**
+     * Finds one user or null with given condition
+     * @param {object} condition Query condition.
+     * @returns {Promise<IUserDocument | null>}
+     */
+    public async findOneUserBy(condition: IUserFilgerConditions): Promise<IUserDocument | null> {
+        try {
+            this.logger.debug('FindOneUserBy', {condition});
+            return this._filterUser(this.users.slice(), condition)[0];
+        } catch (e) {
+            this.logger.error('FindOneUserBy', e);
+            throw e;
+        }
+    }
+
+    /**
      * Filters users with given conditions
      * @param {IUserFilter} conditions: User Filters
      * @param {PaginateOptions} pagination
@@ -192,7 +216,7 @@ export class MockDatabase {
         Promise<PaginateResult<IUserDocument>> {
         this.logger.debug('FilterUser', { conditions, pagination });
         try {
-            return User.paginate(this._filterUser(this.users.slice(), conditions), pagination);
+            return this.paginate(this._filterUser(this.users.slice(), conditions), pagination);
         } catch (e) {
             this.logger.error('FilterUser', e);
             throw e;
@@ -211,7 +235,7 @@ export class MockDatabase {
                 data = data.filter(d => d.name === conditions.name);
             }
             if (typeof conditions.slug === "string") {
-                data = data.filter(d => d.name === conditions.slug);
+                data = data.filter(d => d.slug === conditions.slug);
             }
             if (conditions.createdAt) {
                 data = this.compare(data, 'createdAt', conditions.createdAt);
@@ -244,18 +268,12 @@ export class MockDatabase {
 
     private _filterUser(data: IUserDocument[], conditions: IUserFilgerConditions): IUserDocument[] {
         try {
+            this.logger.debug('_FilterUser', {data, conditions});
             if (conditions._id) {
                 data = data.filter(d => d._id.toString() === conditions._id);
             }
-            if (conditions.user) {
-                if (typeof conditions.user.eq === "string") {
-                    data = data.filter(d => d.user === conditions.user.eq);
-                } else if (conditions.user.in && conditions.user.in.length > 0) {
-                    data = data.filter(d => d.user in conditions.user.in);
-                }
-            }
-            if (conditions) {
-                data = data.filter(d => d._id.toString() === conditions._id);
+            if (typeof conditions.user === "string") {
+                data = data.filter(d => d.user === conditions.user);
             }
             if (conditions.count) {
                 data = this.compare(data, 'count', conditions.count);
