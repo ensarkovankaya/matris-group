@@ -1,7 +1,7 @@
 import { PaginateOptions, PaginateResult } from 'mongoose';
 import slugify from 'slugify';
 import { Service } from "typedi";
-import { GroupNotFound, InvalidArgument } from '../errors';
+import { GroupNotFound, InvalidArgument, PaginationError } from '../errors';
 import { Group } from '../graphql/schemas/group.schema';
 import { getLogger, Logger } from "../logger";
 import { IGroupFilter } from '../models/group.filter.model';
@@ -54,16 +54,45 @@ export class GroupService {
     }
 
     /**
+     * Update group entry
+     * @param {string} groupId Group id
+     * @param {string} name New group name
+     */
+    public async update(groupId: string, name: string): Promise<void> {
+        if (typeof name !== 'string' || name.length <= 0) {
+            throw new InvalidArgument('name');
+        }
+
+        if (typeof groupId !== 'string' || groupId.length !== 24) {
+            throw new InvalidArgument('groupId');
+        }
+
+        const group = await this.db.findOneGroupBy({ _id: groupId, deleted: false });
+
+        if (!group) {
+            throw new GroupNotFound();
+        }
+
+        try {
+            const slug = this.normalize(name.trim().toLowerCase());
+            await this.db.updateGroup(groupId, { name, slug });
+        } catch (e) {
+            this.logger.error('Group can not updated', e, { groupId, name });
+            throw e;
+        }
+    }
+
+    /**
      * Add user to group
      * @param {string} userId User id
      * @param {string} groupId Group id
      */
     public async addUser(userId: string, groupId: string): Promise<void> {
         if (typeof userId !== 'string' || userId.length !== 24) {
-            throw new InvalidArgument('user');
+            throw new InvalidArgument('userId');
         }
         if (typeof groupId !== 'string' || groupId.length !== 24) {
-            throw new InvalidArgument('group');
+            throw new InvalidArgument('groupId');
         }
 
         try {
@@ -84,10 +113,10 @@ export class GroupService {
      */
     public async removeUser(userId: string, groupId: string): Promise<void> {
         if (typeof userId !== 'string' || userId.length !== 24) {
-            throw new InvalidArgument('user');
+            throw new InvalidArgument('userId');
         }
         if (typeof groupId !== 'string' || groupId.length !== 24) {
-            throw new InvalidArgument('group');
+            throw new InvalidArgument('groupId');
         }
         try {
             await Promise.all([
@@ -105,6 +134,9 @@ export class GroupService {
      * @param id Group id
      */
     public async delete(id: string) {
+        if (typeof id !== 'string' || id.length !== 24) {
+            throw new InvalidArgument('group');
+        }
         const group = await this.db.findOneGroupBy({ _id: id, deleted: false });
         if (!group) {
             throw new GroupNotFound();
@@ -127,13 +159,16 @@ export class GroupService {
      * @param id Group id
      */
     public async undelete(id: string) {
-        const group = await this.db.findOneGroupBy({ _id: id });
+        const group = await this.db.findOneGroupBy({ _id: id, deleted: true });
 
         if (!group) {
             throw new GroupNotFound();
         }
         try {
+            // Add group to all related users
             await Promise.all(group.users.map(user => this.addGroupToUser(user, id)));
+            // Update group as not deleted
+            await this.db.updateGroup(id, { deleted: false, deletedAt: null });
         } catch (e) {
             this.logger.error('Undeletion failed', e);
             throw e;
@@ -141,7 +176,7 @@ export class GroupService {
     }
 
     /**
-     * Get's group from database with given id, name or slug.
+     * Retrieve one group from database with given id, name or slug.
      * @param {object} by Query parameters
      * @param {string} by.id Group id
      * @param {string} by.name Group name
@@ -157,6 +192,15 @@ export class GroupService {
         }
         if (typeof deleted !== 'boolean') {
             throw new InvalidArgument('deleted');
+        }
+        if (by.id !== undefined && typeof by.id !== 'string') {
+            throw new InvalidArgument('by.id');
+        }
+        if (by.name !== undefined && typeof by.name !== 'string') {
+            throw new InvalidArgument('by.name');
+        }
+        if (by.slug !== undefined && typeof by.slug !== 'string') {
+            throw new InvalidArgument('by.slug');
         }
 
         let group: IGroupDocument | null = null;
@@ -180,21 +224,70 @@ export class GroupService {
      * @param {string} userId  User id
      * @returns {Promise<IGroup>[]} List of groups
      */
-    public async getUserGroups(userId: string): Promise<IGroup[]> {
+    public async getUserGroups(userId: string, pagination: PaginateOptions = { limit: 10 }):
+        Promise<PaginateResult<IGroup>> {
         this.logger.info('Getting user groups from database', { userId });
         try {
             const user = await this.db.findOneUserBy({ user: userId, deleted: false });
             this.logger.debug('User entry from database', user);
 
             if (!user) {
-                return [];
+                return this.paginate<IGroup>([], pagination);
             }
-            return await Promise.all(user.groups.map(groupId => this.get({ id: groupId })))
-                .then(groups => groups.filter(group => group !== null));
+
+            const paginated = this.paginate<string>(user.groups, pagination);
+
+            const groups = await Promise.all(paginated.docs.map(groupId => this.get({ id: groupId })))
+                .then(data => data.filter(g => g !== null));
+
+            return { ...paginated, docs: groups };
         } catch (e) {
             this.logger.error('Getting user groups failed', e, { userId });
             throw e;
         }
+    }
+
+    /**
+     * Paginates given data
+     * @param {T} data
+     * @param {PaginateOptions} options
+     * @returns {PaginateResult<T>}
+     */
+    public paginate<T = any>(data: T[], options: PaginateOptions = {}): PaginateResult<T> {
+        const page = options.page || 1;
+        const limit = options.limit || 0;
+        const offset = options.offset || 0;
+
+        // Offset
+        const offseted = data.slice(offset);
+
+        const total = offseted.length;
+
+        // Find pages
+        let pages: number = 0;
+        if (limit >= offseted.length) {
+            pages = 1;
+        } else {
+            let count = 0;
+            while (count < offseted.length) {
+                count += limit;
+                pages += 1;
+            }
+        }
+        if (page > pages) {
+            throw new PaginationError('Page is greater than total pages');
+        }
+        const start = limit * (page - 1);
+        const end = limit ? start + limit : offseted.length;
+        const docs = offseted.slice(start, end);
+        return {
+            docs,
+            total,
+            offset,
+            limit,
+            page,
+            pages
+        };
     }
 
     /**
@@ -204,6 +297,29 @@ export class GroupService {
      * @returns {string} Normalized string
      */
     public normalize(value: string): string {
+        if (typeof value !== 'string') {
+            throw new InvalidArgument('value');
+        }
+        // Trim, Normalize and Lowercase
+        value = value.trim().normalize().toLowerCase();
+
+        // Replace Turkish characters
+        value = value
+            .replace(new RegExp('ğ', 'g'), 'g')
+            .replace(new RegExp('Ğ', 'g'), 'g')
+            .replace(new RegExp('ü', 'g'), 'u')
+            .replace(new RegExp('Ü', 'g'), 'u')
+            .replace(new RegExp('ç', 'g'), 'c')
+            .replace(new RegExp('Ç', 'g'), 'c')
+            .replace(new RegExp('ş', 'g'), 's')
+            .replace(new RegExp('Ş', 'g'), 's')
+            .replace(new RegExp('ı', 'g'), 'i')
+            .replace(new RegExp('I', 'g'), 'i')
+            .replace(new RegExp('ö', 'g'), 'o')
+            .replace(new RegExp('Ö', 'g'), 'o');
+
+        // Remove unwanted characters
+        value = value.replace(new RegExp('[^a-zA-Z0-9 -]', 'g'), '');
         return slugify(value);
     }
 
@@ -215,8 +331,10 @@ export class GroupService {
     public async list(filters: IGroupFilter = {}, pagination: PaginateOptions = { limit: 10 }):
         Promise<PaginateResult<IGroup>> {
         try {
+            this.logger.debug('List', {filters, pagination});
             const result = await this.db.filterGroup(filters, pagination);
-            return {...result, docs: result.docs.map(this.toGroup)};
+            this.logger.debug('List', {result});
+            return { ...result, docs: result.docs.map(this.toGroup) };
         } catch (e) {
             this.logger.error('List', e);
             throw e;
@@ -228,7 +346,7 @@ export class GroupService {
      * @param userId User id
      * @param groupId Group id
      */
-    private async removeGroupFromUser(userId: string, groupId: string): Promise<void> {
+    public async removeGroupFromUser(userId: string, groupId: string): Promise<void> {
         try {
             const entry = await this.db.findOneUserBy({ user: userId, deleted: false });
             this.logger.debug('User entry get from database', { entry });
@@ -250,7 +368,7 @@ export class GroupService {
      * @param userId User id
      * @param groupId Group id
      */
-    private async removeUserFromGroup(userId: string, groupId: string): Promise<void> {
+    public async removeUserFromGroup(userId: string, groupId: string): Promise<void> {
         try {
             const group = await this.db.findOneGroupBy({ _id: groupId, deleted: false });
 
@@ -275,7 +393,7 @@ export class GroupService {
      * @param userId User id
      * @param groupId Group id
      */
-    private async addUserToGroup(userId: string, groupId: string): Promise<void> {
+    public async addUserToGroup(userId: string, groupId: string): Promise<void> {
         const group = await this.db.findOneGroupBy({ _id: groupId, deleted: false });
         if (!group) {
             throw new GroupNotFound();
@@ -298,18 +416,21 @@ export class GroupService {
      * @param userId User id
      * @param groupId Group id
      */
-    private async addGroupToUser(userId: string, groupId: string): Promise<void> {
-        const entry = await this.db.findOneUserBy({ user: userId, deleted: false });
-        this.logger.debug('User entry recived', { entry });
-
+    public async addGroupToUser(userId: string, groupId: string): Promise<void> {
         try {
+            const entry = await this.db.findOneUserBy({ user: userId, deleted: false });
+
             if (entry) {
-                const groups = new Set(entry.groups).add(groupId);
+                this.logger.debug('User entry recived', { entry });
+                const groups = new Set(entry.groups);
+                groups.add(groupId);
+                console.log('Groups', groups);
                 await this.db.updateUser(userId, {
                     groups: [...groups],
                     count: groups.size
                 });
             } else {
+                this.logger.debug('User entry not found, creating.');
                 await this.db.createUser({
                     user: userId,
                     groups: [groupId],
