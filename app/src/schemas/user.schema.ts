@@ -4,7 +4,7 @@ import { IUserDocument } from "../models/user.model";
 
 /**
  * Stores user registered groups.
- * @property {string} user: User id.
+ * @property {string} id: User id.
  * @property {string[]} groups: group ids in which the user is registered.
  * @property {Number} count: How many group user registered.
  * @property {Date} createdAt: Entry created date.
@@ -13,7 +13,7 @@ import { IUserDocument } from "../models/user.model";
  * @property {Boolean} deleted: Is entry deleted.
  */
 const UserSchema: Schema = new Schema({
-    user: {
+    id: {
         minlength: 24,
         maxlength: 24,
         required: true,

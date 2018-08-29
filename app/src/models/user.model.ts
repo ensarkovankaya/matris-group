@@ -1,7 +1,8 @@
 import { Document } from 'mongoose';
+import { IGroup } from './group.model';
 
 export interface IUserDocument extends Document {
-    user: string;
+    id: string;
     groups: string[];
     count: number;
     createdAt: Date;
@@ -11,8 +12,8 @@ export interface IUserDocument extends Document {
 }
 
 export interface IUser {
-    user: string;
-    groups: string[];
+    id: string;
+    groups: IGroup[];
     count: number;
     createdAt: Date;
     updatedAt: Date;

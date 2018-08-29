@@ -15,14 +15,14 @@ describe('Unit -> Schemas -> User', () => {
         } catch (e) {
             expect(e.name).to.be.eq('ValidationError');
             expect(e.errors).to.be.an('object');
-            expect(e.errors).to.have.keys(['user']);
-            expect(e.errors.user.kind).to.be.eq('required');
+            expect(e.errors).to.have.keys(['id']);
+            expect(e.errors.id.kind).to.be.eq('required');
         }
     });
 
     it('should create empty user entry', async () => {
         try {
-            const user = new User({user: '1'.repeat(24)});
+            const user = new User({id: '1'.repeat(24)});
             await user.validate();
             expect(user.isNew).to.be.eq(true);
 
@@ -30,7 +30,7 @@ describe('Unit -> Schemas -> User', () => {
             expect(user._id.toString()).to.be.a('string');
             expect(user._id.toString()).to.have.lengthOf(24);
 
-            expect(user.user).to.be.eq('1'.repeat(24));
+            expect(user.id).to.be.eq('1'.repeat(24));
 
             expect(user.groups).to.be.an('array');
             expect(user.groups).to.be.deep.eq([]);
@@ -47,40 +47,40 @@ describe('Unit -> Schemas -> User', () => {
         }
     });
 
-    describe('user', () => {
+    describe('id', () => {
         it('should raise error for user if id not valid', async () => {
             try {
-                await new User({user: '-'.repeat(24)}).validate();
+                await new User({id: '-'.repeat(24)}).validate();
                 throw new ShouldNotSucceed();
             } catch (e) {
                 expect(e.name).to.be.eq('ValidationError');
                 expect(e.errors).to.be.an('object');
-                expect(e.errors).to.have.keys(['user']);
-                expect(e.errors.user.kind).to.be.eq('regexp');
+                expect(e.errors).to.have.keys(['id']);
+                expect(e.errors.id.kind).to.be.eq('regexp');
             }
         });
 
         it('should raise error for user if id length is bigger than max value', async () => {
             try {
-                await new User({user: '1'.repeat(25)}).validate();
+                await new User({id: '1'.repeat(25)}).validate();
                 throw new ShouldNotSucceed();
             } catch (e) {
                 expect(e.name).to.be.eq('ValidationError');
                 expect(e.errors).to.be.an('object');
-                expect(e.errors).to.have.keys(['user']);
-                expect(e.errors.user.kind).to.be.eq('maxlength');
+                expect(e.errors).to.have.keys(['id']);
+                expect(e.errors.id.kind).to.be.eq('maxlength');
             }
         });
 
         it('should raise error for user if id length is bigger than min value', async () => {
             try {
-                await new User({user: '1'.repeat(23)}).validate();
+                await new User({id: '1'.repeat(23)}).validate();
                 throw new ShouldNotSucceed();
             } catch (e) {
                 expect(e.name).to.be.eq('ValidationError');
                 expect(e.errors).to.be.an('object');
-                expect(e.errors).to.have.keys(['user']);
-                expect(e.errors.user.kind).to.be.eq('minlength');
+                expect(e.errors).to.have.keys(['id']);
+                expect(e.errors.id.kind).to.be.eq('minlength');
             }
         });
     });
@@ -88,7 +88,7 @@ describe('Unit -> Schemas -> User', () => {
     describe('count', () => {
         it('should raise error for count is bigger than max value', async () => {
             try {
-                const user = new User({user: '1'.repeat(24), count: 251});
+                const user = new User({id: '1'.repeat(24), count: 251});
                 await user.validate();
                 throw new ShouldNotSucceed();
             } catch (e) {
@@ -104,7 +104,7 @@ describe('Unit -> Schemas -> User', () => {
         it('should create user with 2 groups', async () => {
             try {
                 const user = new User({
-                    user: '1'.repeat(24),
+                    id: '1'.repeat(24),
                     groups: [
                         "5b4b57f1fc13ae1730000640",
                         "5b4b57f1fc13ae1730000641"

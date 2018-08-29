@@ -51,7 +51,7 @@ describe('Unit -> Services -> GroupService', () => {
         });
 
         it('should update existing user entry', async () => {
-            const u = new User({user: '1'.repeat(24)});
+            const u = new User({id: '1'.repeat(24)});
             const db = new MockDatabase([], [u]);
             const service = new GroupService(db as any);
 
@@ -122,7 +122,7 @@ describe('Unit -> Services -> GroupService', () => {
 
     describe('RemoveGroupFromUser', () => {
         it('should remove group from user entry', async () => {
-            const u = new User({user: '1'.repeat(24), count: 1, groups: ['2'.repeat(24)]});
+            const u = new User({id: '1'.repeat(24), count: 1, groups: ['2'.repeat(24)]});
             const db = new MockDatabase([], [u]);
             const service = new GroupService(db as any);
             await service.removeGroupFromUser('1'.repeat(24), '2'.repeat(24));
@@ -131,7 +131,7 @@ describe('Unit -> Services -> GroupService', () => {
             const user = db.users[0];
             expect(user).to.be.instanceof(User);
             expect(user._id.toString()).to.be.eq(u._id.toString());
-            expect(user.user).to.be.eq('1'.repeat(24));
+            expect(user.id).to.be.eq('1'.repeat(24));
             expect(user.count).to.be.eq(0);
             expect(user.groups).to.have.lengthOf(0);
         });
@@ -275,8 +275,8 @@ describe('Unit -> Services -> GroupService', () => {
     describe('Delete', () => {
         it('should mark group as deleted', async () => {
             const g = new Group({name: 'Admins', slug: 'admins', count: 2, users: ['1'.repeat(24), '2'.repeat(24)]});
-            const u1 = new User({user: '1'.repeat(24), count: 1, groups: [g._id.toString()]});
-            const u2 = new User({user: '2'.repeat(24), count: 1, groups: [g._id.toString()]});
+            const u1 = new User({id: '1'.repeat(24), count: 1, groups: [g._id.toString()]});
+            const u2 = new User({id: '2'.repeat(24), count: 1, groups: [g._id.toString()]});
             const db = new MockDatabase([g], [u1, u2]);
             const service = new GroupService(db as any);
 
@@ -293,7 +293,7 @@ describe('Unit -> Services -> GroupService', () => {
             expect(group.deleted).to.be.eq(true);
             expect(group.deletedAt).to.be.a('date');
             expect(group.count).to.be.eq(2);
-            expect(group.users).to.be.deep.eq([u1.user, u2.user]);
+            expect(group.users).to.be.deep.eq([u1.id, u2.id]);
 
             expect(user1.count).to.be.eq(0);
             expect(user1.groups).to.be.deep.eq([]);
@@ -346,7 +346,7 @@ describe('Unit -> Services -> GroupService', () => {
                 count: 1,
                 users: ['1'.repeat(24)]
             });
-            const u = new User({user: '1'.repeat(24)});
+            const u = new User({id: '1'.repeat(24)});
             const db = new MockDatabase([g], [u]);
             const service = new GroupService(db as any);
             await service.undelete(g._id.toString());
@@ -545,14 +545,14 @@ describe('Unit -> Services -> GroupService', () => {
             expect(db.users).to.have.lengthOf(1);
             const user = db.users[0];
             expect(user).to.be.instanceof(User);
-            expect(user.user).to.be.eq('1'.repeat(24));
+            expect(user.id).to.be.eq('1'.repeat(24));
             expect(user.groups).to.have.lengthOf(1);
             expect(user.groups).to.be.deep.eq([g._id.toString()]);
         });
 
         it('should add user to group and update existing User entry', async () => {
             const g = new Group({name: 'Admins', slug: 'admins'});
-            const u = new User({user: '1'.repeat(24)});
+            const u = new User({id: '1'.repeat(24)});
             const db = new MockDatabase([g], [u]);
             const service = new GroupService(db as any);
             await service.addUser('1'.repeat(24), g._id.toString());
@@ -567,7 +567,7 @@ describe('Unit -> Services -> GroupService', () => {
             expect(db.users).to.have.lengthOf(1);
             const user = db.users[0];
             expect(user).to.be.instanceof(User);
-            expect(user.user).to.be.eq('1'.repeat(24));
+            expect(user.id).to.be.eq('1'.repeat(24));
             expect(user.groups).to.have.lengthOf(1);
             expect(user.groups).to.be.deep.eq([g._id.toString()]);
             expect(user.updatedAt).to.be.gt(u.updatedAt);
@@ -701,7 +701,7 @@ describe('Unit -> Services -> GroupService', () => {
 
         it('should remove user from group and update user entry', async () => {
             const g = new Group({name: 'Admins', slug: 'admins', count: 1, users: ['1'.repeat(24)]});
-            const u = new User({user: '1'.repeat(24), count: 2, groups: [
+            const u = new User({id: '1'.repeat(24), count: 2, groups: [
                 g._id.toString(),
                 '2'.repeat(24)
             ]});
@@ -720,7 +720,7 @@ describe('Unit -> Services -> GroupService', () => {
             expect(db.users).to.have.lengthOf(1);
             const user = db.users[0];
             expect(user).to.be.instanceof(User);
-            expect(user.user).to.be.eq('1'.repeat(24));
+            expect(user.id).to.be.eq('1'.repeat(24));
             expect(user.groups).to.have.lengthOf(1);
             expect(user.groups).to.be.deep.eq(['2'.repeat(24)]);
             expect(user.updatedAt).to.be.gt(u.updatedAt);
@@ -784,7 +784,7 @@ describe('Unit -> Services -> GroupService', () => {
             const g1 = new Group({name: 'G1', slug: 'g1', count: 1, users: ['1'.repeat(24)]});
             const g2 = new Group({name: 'G2', slug: 'g2', count: 2, users: ['1'.repeat(24), '2'.repeat(24)]});
             const g3 = new Group({name: 'G3', slug: 'g3'});
-            const u = new User({user: '1'.repeat(24), count: 2, groups: [g1._id.toString(), g2._id.toString()]});
+            const u = new User({id: '1'.repeat(24), count: 2, groups: [g1._id.toString(), g2._id.toString()]});
             const db = new MockDatabase([g1, g2, g3], [u]);
             const service = new GroupService(db as any);
 

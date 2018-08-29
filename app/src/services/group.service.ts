@@ -41,7 +41,7 @@ export class GroupService {
      * @returns {IGroup}
      */
     public async create(name: string): Promise<IGroup> {
-        if (typeof name !== 'string' || name.length <= 0) {
+        if (typeof name !== 'string' || name.length < 1) {
             throw new InvalidArgument('name');
         }
         try {
@@ -228,7 +228,7 @@ export class GroupService {
         Promise<PaginateResult<IGroup>> {
         this.logger.info('Getting user groups from database', { userId });
         try {
-            const user = await this.db.findOneUserBy({ user: userId, deleted: false });
+            const user = await this.db.findOneUserBy({ id: userId, deleted: false });
             this.logger.debug('User entry from database', user);
 
             if (!user) {
@@ -242,7 +242,7 @@ export class GroupService {
 
             return { ...paginated, docs: groups };
         } catch (e) {
-            this.logger.error('Getting user groups failed', e, { userId });
+            this.logger.error('Getting user groups failed', e, { userId, pagination });
             throw e;
         }
     }
@@ -348,7 +348,7 @@ export class GroupService {
      */
     public async removeGroupFromUser(userId: string, groupId: string): Promise<void> {
         try {
-            const entry = await this.db.findOneUserBy({ user: userId, deleted: false });
+            const entry = await this.db.findOneUserBy({ id: userId, deleted: false });
             this.logger.debug('User entry get from database', { entry });
             if (entry) {
                 const groups = new Set(entry.groups);
@@ -418,21 +418,18 @@ export class GroupService {
      */
     public async addGroupToUser(userId: string, groupId: string): Promise<void> {
         try {
-            const entry = await this.db.findOneUserBy({ user: userId, deleted: false });
+            const entry = await this.db.findOneUserBy({ id: userId, deleted: false });
 
             if (entry) {
                 this.logger.debug('User entry recived', { entry });
-                const groups = new Set(entry.groups);
-                groups.add(groupId);
-                console.log('Groups', groups);
+                const groups = new Set(entry.groups).add(groupId);
                 await this.db.updateUser(userId, {
                     groups: [...groups],
                     count: groups.size
                 });
             } else {
                 this.logger.debug('User entry not found, creating.');
-                await this.db.createUser({
-                    user: userId,
+                await this.db.createUser(userId, {
                     groups: [groupId],
                     count: 1
                 });

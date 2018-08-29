@@ -182,13 +182,15 @@ export class DatabaseService {
 
     /**
      * Create new user
+     * @param {string} id User id
      * @param {object} data Create data
      */
-    public async createUser(data: object): Promise<IUserDocument> {
+    public async createUser(id: string, data: object): Promise<IUserDocument> {
         this.logger.debug('CreateUser', { data });
         try {
             return await new User({
                 ...data,
+                id,
                 createdAt: new Date(),
                 updatedAt: new Date()
             }).save({ validateBeforeSave: true });
@@ -238,8 +240,8 @@ export class DatabaseService {
         this.logger.debug('FilterUser', { conditions, pagination });
         try {
             let query = User.find();
-            if (typeof conditions.user === "string") {
-                query = query.where('user', conditions.user);
+            if (typeof conditions.id === "string") {
+                query = query.where('id', conditions.id);
             }
             if (typeof conditions.deleted === 'boolean') {
                 query = query.where('deleted', conditions.deleted);

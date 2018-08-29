@@ -129,13 +129,15 @@ export class MockDatabase {
 
     /**
      * Create new user
+     * @param {string} id User id
      * @param {object} data Create data
      */
-    public async createUser(data: object): Promise<IUserDocument> {
-        this.logger.debug('CreateUser', { data });
+    public async createUser(id: string, data: object): Promise<IUserDocument> {
+        this.logger.debug('CreateUser', { id, data });
         try {
             const user = new User({
                 ...data,
+                id,
                 createdAt: new Date(),
                 updatedAt: new Date()
             });
@@ -156,7 +158,7 @@ export class MockDatabase {
     public async updateUser(userId: string, data: object): Promise<void> {
         this.logger.debug('Updating user entery', { userId, data });
 
-        const user = this.users.find(u => u.user === userId);
+        const user = this.users.find(u => u.id === userId);
 
         if (!user) {
             throw new UserNotFound();
@@ -166,6 +168,7 @@ export class MockDatabase {
             const updated = new User({
                 ...user.toObject(),
                 ...data,
+                id: user.id,
                 createdAt: user.createdAt,
                 updatedAt: new Date()
             });
@@ -272,8 +275,8 @@ export class MockDatabase {
             if (conditions._id) {
                 data = data.filter(d => d._id.toString() === conditions._id);
             }
-            if (typeof conditions.user === "string") {
-                data = data.filter(d => d.user === conditions.user);
+            if (typeof conditions.id === "string") {
+                data = data.filter(d => d.id === conditions.id);
             }
             if (conditions.count) {
                 data = this.compare(data, 'count', conditions.count);
