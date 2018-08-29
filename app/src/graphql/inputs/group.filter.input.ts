@@ -2,7 +2,7 @@ import { IsArray, IsBoolean, IsString, Length, ValidateIf } from 'class-validato
 import { Field, InputType } from 'type-graphql';
 import { Validatable } from '../validatable';
 
-@InputType({description: 'User filter options.'})
+@InputType({description: 'Group filter options.'})
 export class GroupFilterInput extends Validatable  {
     @Field({nullable: true, description: 'Is user active?'})
     @ValidateIf((object, value) => value !== undefined)
@@ -21,7 +21,7 @@ export class GroupFilterInput extends Validatable  {
     @Length(1, 35)
     public slug?: string;
 
-    @Field({nullable: true, description: 'Group slug'})
+    @Field(type => [String], {nullable: true, description: 'Group slug'})
     @ValidateIf((object, value) => value !== undefined)
     @IsArray()
     @Length(24, 24, {each: true})
