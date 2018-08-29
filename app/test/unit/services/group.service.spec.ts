@@ -19,8 +19,6 @@ describe('Unit -> Services -> GroupService', () => {
         expect(service.get).to.be.a('function');
         expect(service.create).to.be.a('function');
         expect(service.delete).to.be.a('function');
-        expect(service.undelete).to.be.a('function');
-        expect(service.addUser).to.be.a('function');
         expect(service.removeUser).to.be.a('function');
         expect(service.normalize).to.be.a('function');
         expect(service.list).to.be.a('function');
@@ -33,36 +31,6 @@ describe('Unit -> Services -> GroupService', () => {
         expect(obj).to.have.keys([
             'id', 'name', 'slug', 'users', 'count', 'createdAt', 'updatedAt', 'deletedAt', 'deleted'
         ]);
-    });
-
-    describe('AddGroupToUser', () => {
-        it('should create new user entry', async () => {
-            const db = new MockDatabase();
-            const service = new GroupService(db as any);
-
-            await service.addGroupToUser('1'.repeat(24), '2'.repeat(24));
-
-            const user = db.users[0];
-            expect(user).to.instanceof(User);
-            expect(user.count).to.be.eq(1);
-            expect(user.groups).to.have.lengthOf(1);
-            expect(user.groups).to.be.deep.eq(['2'.repeat(24)]);
-        });
-
-        it('should update existing user entry', async () => {
-            const u = new User({id: '1'.repeat(24)});
-            const db = new MockDatabase([], [u]);
-            const service = new GroupService(db as any);
-
-            await service.addGroupToUser('1'.repeat(24), '2'.repeat(24));
-
-            const user = db.users[0];
-            expect(user).to.be.instanceof(User);
-            expect(user._id.toString()).to.be.eq(u._id.toString());
-            expect(user.count).to.be.eq(1);
-            expect(user.groups).to.have.lengthOf(1);
-            expect(user.groups).to.be.deep.eq(['2'.repeat(24)]);
-        });
     });
 
     describe('AddUserToGroup', () => {
@@ -335,62 +303,6 @@ describe('Unit -> Services -> GroupService', () => {
         });
     });
 
-    describe('Undelete', () => {
-        it('should reverse deleted group', async () => {
-            const g = new Group({
-                name: 'Admins',
-                slug: 'admins',
-                deleted: true,
-                deletedAt: new Date(),
-                count: 1,
-                users: ['1'.repeat(24)]
-            });
-            const u = new User({id: '1'.repeat(24)});
-            const db = new MockDatabase([g], [u]);
-            const service = new GroupService(db as any);
-            await service.undelete(g._id.toString());
-
-            expect(db.groups).to.have.lengthOf(1);
-            expect(db.users).to.have.lengthOf(1);
-            const group = db.groups[0];
-            const user = db.users[0];
-            expect(group).to.be.instanceof(Group);
-            expect(user).to.be.instanceof(User);
-
-            expect(group._id.toString()).to.be.eq(g._id.toString());
-            expect(group.deleted).to.be.eq(false);
-            expect(group.deletedAt).to.be.eq(null);
-            expect(group.users).to.have.lengthOf(1);
-            expect(group.users).to.be.deep.eq(['1'.repeat(24)]);
-
-            expect(user.count).to.be.eq(1);
-            expect(user.groups).to.be.deep.eq([group._id.toString()]);
-        });
-
-        it('should throw GroupNotFound for not existing group', async () => {
-            try {
-                const db = new MockDatabase();
-                const service = new GroupService(db as any);
-                await service.undelete('1'.repeat(24));
-                throw new ShouldNotSucceed();
-            } catch (e) {
-                expect(e.name).to.be.eq('GroupNotFound');
-            }
-        });
-
-        it('should throw GroupNotFound for not deleted group', async () => {
-            try {
-                const g = new Group({name: 'Admins', slug: 'admins'});
-                const db = new MockDatabase([g]);
-                const service = new GroupService(db as any);
-                await service.undelete('1'.repeat(24));
-                throw new ShouldNotSucceed();
-            } catch (e) {
-                expect(e.name).to.be.eq('GroupNotFound');
-            }
-        });
-    });
-
     describe('Get', () => {
         it('should raise InvalidArgument if argument not object', async () => {
             try {
@@ -524,114 +436,6 @@ describe('Unit -> Services -> GroupService', () => {
             const group = await service.get({id: g._id.toString()}, true);
             expect(group).to.be.an('object');
             expect(group.id).to.be.eq(g._id.toString());
-        });
-    });
-
-    describe('AddUser', () => {
-        it('should add user to group and create User entry', async () => {
-            const g = new Group({name: 'Admins', slug: 'admins'});
-            const db = new MockDatabase([g]);
-            const service = new GroupService(db as any);
-            await service.addUser('1'.repeat(24), g._id.toString());
-
-            expect(db.groups).to.have.lengthOf(1);
-
-            const group = db.groups[0];
-            expect(group).to.be.instanceof(Group);
-            expect(group.count).to.be.eq(1);
-            expect(group.users).to.be.deep.eq(['1'.repeat(24)]);
-
-            expect(db.users).to.have.lengthOf(1);
-            const user = db.users[0];
-            expect(user).to.be.instanceof(User);
-            expect(user.id).to.be.eq('1'.repeat(24));
-            expect(user.groups).to.have.lengthOf(1);
-            expect(user.groups).to.be.deep.eq([g._id.toString()]);
-        });
-
-        it('should add user to group and update existing User entry', async () => {
-            const g = new Group({name: 'Admins', slug: 'admins'});
-            const u = new User({id: '1'.repeat(24)});
-            const db = new MockDatabase([g], [u]);
-            const service = new GroupService(db as any);
-            await service.addUser('1'.repeat(24), g._id.toString());
-
-            expect(db.groups).to.have.lengthOf(1);
-
-            const group = db.groups[0];
-            expect(group).to.be.instanceof(Group);
-            expect(group.count).to.be.eq(1);
-            expect(group.users).to.be.deep.eq(['1'.repeat(24)]);
-
-            expect(db.users).to.have.lengthOf(1);
-            const user = db.users[0];
-            expect(user).to.be.instanceof(User);
-            expect(user.id).to.be.eq('1'.repeat(24));
-            expect(user.groups).to.have.lengthOf(1);
-            expect(user.groups).to.be.deep.eq([g._id.toString()]);
-            expect(user.updatedAt).to.be.gt(u.updatedAt);
-        });
-
-        it('should raise InvalidArgument if userId not string', async () => {
-            try {
-                const service = new GroupService({} as any);
-                await service.addUser(1 as any, '2'.repeat(24));
-                throw new ShouldNotSucceed();
-            } catch (e) {
-                expect(e.name).to.be.eq('InvalidArgument');
-                expect(e.argument).to.be.eq('userId');
-            }
-        });
-
-        it('should raise InvalidArgument if userId length not equal to 24', async () => {
-            try {
-                const service = new GroupService({} as any);
-                await service.addUser('1'.repeat(23), '2'.repeat(24));
-                throw new ShouldNotSucceed();
-            } catch (e) {
-                expect(e.name).to.be.eq('InvalidArgument');
-                expect(e.argument).to.be.eq('userId');
-            }
-
-            try {
-                const service = new GroupService({} as any);
-                await service.addUser('1'.repeat(25), '2'.repeat(24));
-                throw new ShouldNotSucceed();
-            } catch (e) {
-                expect(e.name).to.be.eq('InvalidArgument');
-                expect(e.argument).to.be.eq('userId');
-            }
-        });
-
-        it('should raise InvalidArgument if groupId not string', async () => {
-            try {
-                const service = new GroupService({} as any);
-                await service.addUser('1'.repeat(24), 1 as any);
-                throw new ShouldNotSucceed();
-            } catch (e) {
-                expect(e.name).to.be.eq('InvalidArgument');
-                expect(e.argument).to.be.eq('groupId');
-            }
-        });
-
-        it('should raise InvalidArgument if groupId length not equal to 24', async () => {
-            try {
-                const service = new GroupService({} as any);
-                await service.addUser('1'.repeat(24), '2'.repeat(23));
-                throw new ShouldNotSucceed();
-            } catch (e) {
-                expect(e.name).to.be.eq('InvalidArgument');
-                expect(e.argument).to.be.eq('groupId');
-            }
-
-            try {
-                const service = new GroupService({} as any);
-                await service.addUser('1'.repeat(24), '2'.repeat(25));
-                throw new ShouldNotSucceed();
-            } catch (e) {
-                expect(e.name).to.be.eq('InvalidArgument');
-                expect(e.argument).to.be.eq('groupId');
-            }
         });
     });
 
