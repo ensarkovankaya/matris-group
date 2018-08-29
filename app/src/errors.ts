@@ -23,6 +23,10 @@ export class UserNotFound extends Error {
     public name = 'UserNotFound';
 }
 
-export class PaginationError extends Error {
-    public name = 'PaginationError';
+export class UserExists extends Error {
+    public name = 'UserExits';
+}
+
+export class NotUserDocument extends Error {
+    public name = 'NotUserDocument';
 }
