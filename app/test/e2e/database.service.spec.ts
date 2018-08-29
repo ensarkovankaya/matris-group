@@ -35,7 +35,7 @@ const resetDatabase = async () => {
 
 beforeEach('Reset Database', () => resetDatabase());
 
-describe('Unit -> Services -> Database', () => {
+describe('E2E -> Database', () => {
 
     it('database should be clean', async () => {
         const users = await User.find().count().exec();
@@ -1431,6 +1431,27 @@ describe('Unit -> Services -> Database', () => {
 
                 const isDeleted = await database.findOneUserBy({_id: user._id.toString()});
                 expect(isDeleted).to.be.eq(null);
+            });
+        });
+
+        describe('FilterUser', () => {
+            it('should return PaginationResult', async () => {
+                const u1 = await new User({id: generateRandomString(24)}).save({validateBeforeSave: true});
+                const u2 = await new User({id: generateRandomString(24)}).save({validateBeforeSave: true});
+                const u3 = await new User({id: generateRandomString(24)}).save({validateBeforeSave: true});
+                const u4 = await new User({id: generateRandomString(24)}).save({validateBeforeSave: true});
+                const u5 = await new User({id: generateRandomString(24)}).save({validateBeforeSave: true});
+
+                const result = await database.filterUser({});
+                expect(result).to.be.an('object');
+                expect(result).to.have.keys(['docs', 'total', 'limit', 'page', 'pages', 'offset']);
+                expect(result.total).to.be.eq(5);
+                expect(result.page).to.be.eq(1);
+                expect(result.limit).to.be.eq(10);
+                expect(result.pages).to.be.eq(1);
+                expect(result.offset).to.be.eq(0);
+                expect(result.docs).to.have.lengthOf(5);
+                expect(result.docs.map(d => d.id)).to.be.deep.eq([u1.id, u2.id, u3.id, u4.id, u5.id]);
             });
         });
     });
