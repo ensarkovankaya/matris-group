@@ -1,8 +1,7 @@
 import { PaginateOptions, PaginateResult } from 'mongoose';
 import slugify from 'slugify';
 import { Service } from "typedi";
-import { GroupNotFound, InvalidArgument, PaginationError } from '../errors';
-import { Group } from '../graphql/schemas/group.schema';
+import { GroupNotFound, InvalidArgument } from '../errors';
 import { getLogger, Logger } from "../logger";
 import { IGroupFilter } from '../models/group.filter.model';
 import { IGroup, IGroupDocument } from '../models/group.model';
@@ -83,30 +82,6 @@ export class GroupService {
     }
 
     /**
-     * Add user to group
-     * @param {string} userId User id
-     * @param {string} groupId Group id
-     */
-    public async addUser(userId: string, groupId: string): Promise<void> {
-        if (typeof userId !== 'string' || userId.length !== 24) {
-            throw new InvalidArgument('userId');
-        }
-        if (typeof groupId !== 'string' || groupId.length !== 24) {
-            throw new InvalidArgument('groupId');
-        }
-
-        try {
-            await Promise.all([
-                this.addGroupToUser(userId, groupId),
-                this.addUserToGroup(userId, groupId)
-            ]);
-        } catch (e) {
-            this.logger.error('User can not added to group', e, { userId, groupId });
-            throw e;
-        }
-    }
-
-    /**
      * Remove user from given group
      * @param userId User id
      * @param groupId Group id
@@ -150,27 +125,6 @@ export class GroupService {
             await this.db.updateGroup(id, { deleted: true, deletedAt: new Date() });
         } catch (e) {
             this.logger.error('Group can not deleted', e, { id });
-            throw e;
-        }
-    }
-
-    /**
-     * Reverse effects of delete method for deleted group. Add group to all users.
-     * @param id Group id
-     */
-    public async undelete(id: string) {
-        const group = await this.db.findOneGroupBy({ _id: id, deleted: true });
-
-        if (!group) {
-            throw new GroupNotFound();
-        }
-        try {
-            // Add group to all related users
-            await Promise.all(group.users.map(user => this.addGroupToUser(user, id)));
-            // Update group as not deleted
-            await this.db.updateGroup(id, { deleted: false, deletedAt: null });
-        } catch (e) {
-            this.logger.error('Undeletion failed', e);
             throw e;
         }
     }
@@ -336,35 +290,6 @@ export class GroupService {
             });
         } catch (e) {
             this.logger.error('Adding user to group entry failed', e, { userId, groupId });
-            throw e;
-        }
-    }
-
-    /**
-     * Adds group realation to User entry
-     * @param userId User id
-     * @param groupId Group id
-     */
-    public async addGroupToUser(userId: string, groupId: string): Promise<void> {
-        try {
-            const entry = await this.db.findOneUserBy({ id: userId, deleted: false });
-
-            if (entry) {
-                this.logger.debug('User entry recived', { entry });
-                const groups = new Set(entry.groups).add(groupId);
-                await this.db.updateUser(userId, {
-                    groups: [...groups],
-                    count: groups.size
-                });
-            } else {
-                this.logger.debug('User entry not found, creating.');
-                await this.db.createUser(userId, {
-                    groups: [groupId],
-                    count: 1
-                });
-            }
-        } catch (e) {
-            this.logger.error('Adding group to user entry failed', e, { userId, groupId });
             throw e;
         }
     }
