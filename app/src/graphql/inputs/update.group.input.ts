@@ -11,4 +11,8 @@ export class UpdateGroupInput extends Validatable {
     @Field({description: 'Group id'})
     @IsMongoId()
     public id: string;
+
+    constructor(data = {}) {
+        super(data, ['id', 'name']);
+    }
 }

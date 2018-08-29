@@ -7,4 +7,8 @@ export class CreateGroupInput extends Validatable {
     @IsString()
     @Length(1, 35)
     public name: string;
+
+    constructor(data = {}) {
+        super(data, ['name']);
+    }
 }
