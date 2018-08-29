@@ -238,12 +238,8 @@ export class DatabaseService {
         this.logger.debug('FilterUser', { conditions, pagination });
         try {
             let query = User.find();
-            if (conditions.user) {
-                if (conditions.user.eq) {
-                    query = query.where('user', conditions.user);
-                } else if (conditions.user.in && conditions.user.in.length > 0) {
-                    query = query.where('user').in(conditions.user.in);
-                }
+            if (typeof conditions.user === "string") {
+                query = query.where('user', conditions.user);
             }
             if (typeof conditions.deleted === 'boolean') {
                 query = query.where('deleted', conditions.deleted);
