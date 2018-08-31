@@ -67,7 +67,7 @@ export class GroupResolver {
     }
 
     @Mutation(returnType => Group, { description: 'Create Group.' })
-    public async create(@Args() data: CreateGroupInput): Promise<Group> {
+    public async create(@Arg('data') data: CreateGroupInput): Promise<Group> {
         if (!(data instanceof CreateGroupInput)) {
             throw new InvalidArgument('data', 'Argument "data" not instance of CreateGroupInput');
         }
@@ -82,7 +82,7 @@ export class GroupResolver {
     }
 
     @Mutation(returnType => Group, { description: 'Update Group.' })
-    public async update(@Args() data: UpdateGroupInput): Promise<Group> {
+    public async update(@Arg('data') data: UpdateGroupInput): Promise<Group> {
         if (!(data instanceof UpdateGroupInput)) {
             throw new InvalidArgument('data', 'Argument "data" not instance of UpdateGroupInput');
         }
@@ -98,7 +98,7 @@ export class GroupResolver {
     }
 
     @Mutation(returnType => Boolean, { description: 'Delete Group' })
-    public async delete(@Args() data: DeleteGroupInput): Promise<boolean> {
+    public async delete(@Arg('data') data: DeleteGroupInput): Promise<boolean> {
         if (!(data instanceof DeleteGroupInput)) {
             throw new InvalidArgument('data', 'Argument "data" not instance of DeleteGroupInput');
         }

@@ -1,7 +1,8 @@
 import { IsMongoId, IsString, Length } from 'class-validator';
-import { Field } from 'type-graphql';
+import { Field, InputType } from 'type-graphql';
 import { Validatable } from "../validatable";
 
+@InputType()
 export class UpdateGroupInput extends Validatable {
     @Field({description: 'Group name'})
     @IsString()

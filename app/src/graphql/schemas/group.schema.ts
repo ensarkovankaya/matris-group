@@ -1,7 +1,7 @@
 import { Field, ID, ObjectType } from 'type-graphql';
 import { IGroup } from '../../models/group.model';
 
-@ObjectType()
+@ObjectType({description: 'Group object'})
 export class Group implements IGroup {
     @Field(type => ID, {description: 'Group unique ID.'})
     public id: string;
