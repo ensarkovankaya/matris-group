@@ -110,6 +110,14 @@ export class GroupService {
      * @param {string} name New group name
      */
     public async update(groupId: string, name: string): Promise<void> {
+        if (typeof groupId !== 'string') {
+            throw new InvalidArgument('groupId', 'Group id must be a string.');
+        }
+
+        if (groupId.length !== 24) {
+            throw new InvalidArgument('groupId', 'Invalid group id.');
+        }
+
         if (typeof name !== 'string') {
             throw new InvalidArgument('name', 'Group name must be a string.');
         }
