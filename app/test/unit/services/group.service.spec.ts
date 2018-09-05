@@ -204,6 +204,7 @@ describe('Unit -> Services -> GroupService', () => {
                 throw new ShouldNotSucceed();
             } catch (e) {
                 expect(e.name).to.be.eq('InvalidArgument');
+                expect(e.argument).to.be.eq('name');
             }
         });
 
@@ -215,6 +216,7 @@ describe('Unit -> Services -> GroupService', () => {
                 throw new ShouldNotSucceed();
             } catch (e) {
                 expect(e.name).to.be.eq('InvalidArgument');
+                expect(e.argument).to.be.eq('name');
             }
         });
 
@@ -226,6 +228,7 @@ describe('Unit -> Services -> GroupService', () => {
                 throw new ShouldNotSucceed();
             } catch (e) {
                 expect(e.name).to.be.eq('InvalidArgument');
+                expect(e.argument).to.be.eq('groupId');
             }
         });
 
@@ -237,6 +240,19 @@ describe('Unit -> Services -> GroupService', () => {
                 throw new ShouldNotSucceed();
             } catch (e) {
                 expect(e.name).to.be.eq('InvalidArgument');
+                expect(e.argument).to.be.eq('groupId');
+            }
+        });
+
+        it('should raise ArgumentError for long groupId', async () => {
+            try {
+                const db = new MockDatabase();
+                const service = new GroupService(db as any);
+                await service.update('1'.repeat(25), 'Admins');
+                throw new ShouldNotSucceed();
+            } catch (e) {
+                expect(e.name).to.be.eq('InvalidArgument');
+                expect(e.argument).to.be.eq('groupId');
             }
         });
 
@@ -918,10 +934,10 @@ describe('Unit -> Services -> GroupService', () => {
                 {
                     method: 'updateGroup',
                     arguments: {
-                        id: g._id.toString(),
-                        data: {
-                            0: ['1'.repeat(24)],
-                            1: 1
+                        0: g._id.toString(),
+                        1: {
+                            users: ['1'.repeat(24)],
+                            count: 1
                         }
                     }
                 }
@@ -1009,7 +1025,7 @@ describe('Unit -> Services -> GroupService', () => {
 
         it('should raise GroupNotFound if group is deleted', async () => {
             try {
-                const group = new Group({name: 'Admins', slug: 'admins', deleted: true, deletedAt: new Date()});
+                const group = new Group({ name: 'Admins', slug: 'admins', deleted: true, deletedAt: new Date() });
                 const db = new MockDatabase([group]);
                 const service = new GroupService(db as any);
                 await service.remove('1'.repeat(24), group._id.toString());
@@ -1020,7 +1036,7 @@ describe('Unit -> Services -> GroupService', () => {
         });
 
         it('should remove user from group and update group', async () => {
-            const g = new Group({name: 'Admins', slug: 'admins', count: 1, users: ['1'.repeat(24)]});
+            const g = new Group({ name: 'Admins', slug: 'admins', count: 1, users: ['1'.repeat(24)] });
             const db = new MockDatabase([g]);
             const service = new GroupService(db as any);
             await service.remove('1'.repeat(24), g._id.toString());
@@ -1038,7 +1054,8 @@ describe('Unit -> Services -> GroupService', () => {
                 {
                     method: 'updateGroup',
                     arguments: {
-                        0: {
+                        0: g._id.toString(),
+                        1: {
                             users: [],
                             count: 0
                         }
@@ -1055,7 +1072,7 @@ describe('Unit -> Services -> GroupService', () => {
         });
 
         it('should not perform update if user not in group', async () => {
-            const g = new Group({name: 'Admins', slug: 'admins', count: 1, users: ['2'.repeat(24)]});
+            const g = new Group({ name: 'Admins', slug: 'admins', count: 1, users: ['2'.repeat(24)] });
             const db = new MockDatabase([g]);
             const service = new GroupService(db as any);
             await service.remove('1'.repeat(24), g._id.toString());
