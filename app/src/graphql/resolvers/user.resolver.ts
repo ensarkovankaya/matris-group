@@ -1,13 +1,12 @@
 import { Logger } from 'matris-logger';
 import { Arg, Mutation, Query, Resolver } from 'type-graphql';
 import { Service } from 'typedi';
-import { PaginationInput } from '../../../../../account/app/src/graphql/inputs/pagination.input';
 import { InvalidArgument } from '../../errors';
 import { getLogger } from '../../logger';
 import { IUser } from '../../models/user.model';
 import { UserService } from '../../services/user.service';
-import { AddGroupInput } from '../inputs/add.group.input';
-import { GetUserArgs } from '../inputs/user.get.args';
+import { CreateUserInput } from '../inputs/create.user.input';
+import { GetUserInput } from '../inputs/get.user.input';
 import { User } from '../schemas/user.schema';
 
 @Service('UserResolver')
@@ -20,17 +19,47 @@ export class UserResolver {
         this.logger = getLogger('UserResolver', ['resolver']);
     }
 
+    /**
+     * Get user entry by id. If user not exists returns null.
+     * @param by
+     * @param by.id User id
+     * @param by.deleted Is user deleted Default false
+     * @returns {Promise<IUser | null>}
+     */
     @Query(returnType => User, { nullable: true, description: 'Get one user.' })
-    public async get(@Arg('by') by: GetUserArgs): Promise<IUser | null> {
-        if (!(by instanceof GetUserArgs)) {
+    public async getUser(@Arg('by') by: GetUserInput): Promise<IUser | null> {
+        this.logger.debug('GetUser', { by });
+        if (!(by instanceof GetUserInput)) {
             throw new InvalidArgument('by', 'Argument "by" not instance of GetUserArgs');
         }
+        await by.validate(); // Validate data
+
         try {
-            this.logger.debug('Get', { by });
-            await by.validate();
             return this.us.get(by.id, by.deleted);
         } catch (e) {
-            this.logger.error('Get', e, { by });
+            this.logger.error('GetUser', e, { by });
+            throw e;
+        }
+    }
+
+    /**
+     * Create user entry
+     * @param data
+     * @param data.id User id
+     * @returns {IUser}
+     */
+    @Mutation(returnType => User, {description: 'Create User entry.'})
+    public async createUser(@Arg('data') data: CreateUserInput): Promise<IUser> {
+        this.logger.debug('CreateUser', { data });
+        if (!(data instanceof CreateUserInput)) {
+            throw new InvalidArgument('data', 'Argument "data" not instance of CreateUserInput');
+        }
+        data.validate(); // Validate data
+
+        try {
+            return this.us.create(data.id);
+        } catch (e) {
+            this.logger.error('CreateUser', e, { data });
             throw e;
         }
     }
