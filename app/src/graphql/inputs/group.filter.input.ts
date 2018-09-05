@@ -28,6 +28,6 @@ export class GroupFilterInput extends Validatable  {
     public users?: string[];
 
     constructor(data: object = {}) {
-        super(data, ['deleted', 'name', 'slug', 'users']);
+        super(data, ['deleted', 'name', 'slug', 'users', 'createdAt', 'updatedAt', 'deletedAt', 'deleted']);
     }
 }

@@ -1,9 +1,9 @@
 import { IsAlphanumeric, IsEmail, IsLowercase, IsMongoId, Length, ValidateIf } from "class-validator";
-import { ArgsType, Field } from 'type-graphql';
+import { Field, InputType } from 'type-graphql';
 import { Validatable } from '../validatable';
 
-@ArgsType()
-export class GroupGetArgs extends Validatable {
+@InputType()
+export class GetGroupInput extends Validatable {
     @Field({nullable: true, description: 'Get user by id.'})
     @ValidateIf((object, value) => value !== undefined)
     @IsMongoId()
