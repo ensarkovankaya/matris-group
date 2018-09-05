@@ -1,26 +1,24 @@
 import { PaginateOptions, PaginateResult } from 'mongoose';
 import slugify from 'slugify';
 import { Service } from "typedi";
-import { GroupNotFound, InvalidArgument } from '../errors';
+import { GroupExists, GroupNotFound, InvalidArgument, InvalidDocument } from '../errors';
 import { getLogger, Logger } from "../logger";
 import { IGroupFilter } from '../models/group.filter.model';
 import { IGroup, IGroupDocument } from '../models/group.model';
+import { Group } from '../schemas/group.schema';
 import { DatabaseService } from './database.service';
 
 @Service('GroupService')
 export class GroupService {
 
-    private logger: Logger;
-
-    constructor(private db: DatabaseService) {
-        this.logger = getLogger('GroupService', ['service']);
-    }
-
     /**
      * Transform mongoose group object to Group object
      * @param {IGroupDocument} doc Mongoose object
      */
-    public toGroup(doc: IGroupDocument): IGroup {
+    public static toGroup(doc: IGroupDocument): IGroup {
+        if (!(doc instanceof Group)) {
+            throw new InvalidDocument('Document must be a Group instance.');
+        }
         return {
             id: doc._id.toString(),
             name: doc.name,
@@ -35,151 +33,12 @@ export class GroupService {
     }
 
     /**
-     * Create group entry
-     * @param {string} name Group name
-     * @returns {IGroup}
-     */
-    public async create(name: string): Promise<IGroup> {
-        if (typeof name !== 'string' || name.length < 1) {
-            throw new InvalidArgument('name');
-        }
-        try {
-            const slug = this.normalize(name.trim().toLowerCase());
-            return await this.db.createGroup({ name, slug }).then(this.toGroup);
-        } catch (e) {
-            this.logger.error('Group can not created', e, { name });
-            throw e;
-        }
-    }
-
-    /**
-     * Update group entry
-     * @param {string} groupId Group id
-     * @param {string} name New group name
-     */
-    public async update(groupId: string, name: string): Promise<void> {
-        if (typeof name !== 'string' || name.length <= 0) {
-            throw new InvalidArgument('name');
-        }
-
-        if (typeof groupId !== 'string' || groupId.length !== 24) {
-            throw new InvalidArgument('groupId');
-        }
-
-        const group = await this.db.findOneGroupBy({ _id: groupId, deleted: false });
-
-        if (!group) {
-            throw new GroupNotFound();
-        }
-
-        try {
-            const slug = this.normalize(name.trim().toLowerCase());
-            await this.db.updateGroup(groupId, { name, slug });
-        } catch (e) {
-            this.logger.error('Group can not updated', e, { groupId, name });
-            throw e;
-        }
-    }
-
-    /**
-     * Remove user from given group
-     * @param userId User id
-     * @param groupId Group id
-     */
-    public async removeUser(userId: string, groupId: string): Promise<void> {
-        if (typeof userId !== 'string' || userId.length !== 24) {
-            throw new InvalidArgument('userId');
-        }
-        if (typeof groupId !== 'string' || groupId.length !== 24) {
-            throw new InvalidArgument('groupId');
-        }
-        try {
-            await Promise.all([
-                this.removeGroupFromUser(userId, groupId),
-                this.removeUserFromGroup(userId, groupId)
-            ]);
-        } catch (e) {
-            this.logger.error('User can not remove from group', e, { userId, groupId });
-            throw e;
-        }
-    }
-
-    /**
-     * Delete's group with given id
-     * @param id Group id
-     */
-    public async delete(id: string) {
-        if (typeof id !== 'string' || id.length !== 24) {
-            throw new InvalidArgument('group');
-        }
-        const group = await this.db.findOneGroupBy({ _id: id, deleted: false });
-        if (!group) {
-            throw new GroupNotFound();
-        }
-
-        try {
-            // Remove group from all related users
-            await Promise.all(group.users.map(user => this.removeGroupFromUser(user, id)));
-
-            // Mark group as deleted
-            await this.db.updateGroup(id, { deleted: true, deletedAt: new Date() });
-        } catch (e) {
-            this.logger.error('Group can not deleted', e, { id });
-            throw e;
-        }
-    }
-
-    /**
-     * Retrieve one group from database with given id, name or slug.
-     * @param {object} by Query parameters
-     * @param {string} by.id Group id
-     * @param {string} by.name Group name
-     * @param {string} by.slug Group slug
-     * @param {boolean} deleted Is group deleted. Default false.
-     * @returns {Promise<IGroup | null>}
-     */
-    public async get(by: { id?: string, name?: string, slug?: string }, deleted: boolean = false):
-        Promise<IGroup | null> {
-        this.logger.info('Getting group', { by });
-        if (typeof by !== 'object' || (!by.id && !by.name && !by.slug)) {
-            throw new InvalidArgument('by');
-        }
-        if (typeof deleted !== 'boolean') {
-            throw new InvalidArgument('deleted');
-        }
-        if (by.id !== undefined && typeof by.id !== 'string') {
-            throw new InvalidArgument('by.id');
-        }
-        if (by.name !== undefined && typeof by.name !== 'string') {
-            throw new InvalidArgument('by.name');
-        }
-        if (by.slug !== undefined && typeof by.slug !== 'string') {
-            throw new InvalidArgument('by.slug');
-        }
-
-        let group: IGroupDocument | null = null;
-        try {
-            if (by.id) {
-                group = await this.db.findOneGroupBy({ _id: by.id, deleted });
-            } else if (by.name) {
-                group = await this.db.findOneGroupBy({ name: by.name, deleted });
-            } else if (by.slug) {
-                group = await this.db.findOneGroupBy({ slug: by.slug, deleted });
-            }
-            return group ? this.toGroup(group) : null;
-        } catch (e) {
-            this.logger.error('Getting group failed', e, { by });
-            throw e;
-        }
-    }
-
-    /**
      * Slugifies string
      * @see https://www.npmjs.com/package/slugify
      * @param {string} value : String
      * @returns {string} Normalized string
      */
-    public normalize(value: string): string {
+    public static normalize(value: string): string {
         if (typeof value !== 'string') {
             throw new InvalidArgument('value');
         }
@@ -206,6 +65,167 @@ export class GroupService {
         return slugify(value);
     }
 
+    private logger: Logger;
+
+    constructor(private db: DatabaseService) {
+        this.logger = getLogger('GroupService', ['service']);
+    }
+
+    /**
+     * Create group entry
+     * @param {string} name Group name
+     * @returns {IGroup}
+     */
+    public async create(name: string): Promise<IGroup> {
+        if (typeof name !== 'string') {
+            throw new InvalidArgument('name', 'Group name must be a string.');
+        }
+        if (name.length < 1) {
+            throw new InvalidArgument('name', 'Group name must be at least 1 character.');
+        }
+        if (name.length > 32) {
+            throw new InvalidArgument('name', 'Group name must be shorter than 32 character.');
+        }
+
+        const slug = GroupService.normalize(name);
+
+        // Check group already exists
+        const group = await this.db.findOneGroupBy({ slug, deleted: false });
+        if (group) {
+            this.logger.warn('Another group exists with same name.', { group });
+            throw new GroupExists(`Group already exists with name "${name}".`);
+        }
+
+        try {
+            return await this.db.createGroup({ name, slug }).then(GroupService.toGroup);
+        } catch (e) {
+            this.logger.error('Group can not created', e, { name });
+            throw e;
+        }
+    }
+
+    /**
+     * Update group entry
+     * @param {string} groupId Group id
+     * @param {string} name New group name
+     */
+    public async update(groupId: string, name: string): Promise<void> {
+        if (typeof name !== 'string') {
+            throw new InvalidArgument('name', 'Group name must be a string.');
+        }
+        if (name.length < 1) {
+            throw new InvalidArgument('name', 'Group name must be at least 1 character.');
+        }
+        if (name.length > 32) {
+            throw new InvalidArgument('name', 'Group name must be shorter than 32 character.');
+        }
+
+        const updateGroup = await this.db.findOneGroupBy({ _id: groupId, deleted: false });
+
+        if (!updateGroup) {
+            throw new GroupNotFound(`Group not found with id "${groupId}".`);
+        }
+
+        // If name already same do not update
+        if (updateGroup.name === name) {
+            this.logger.warn('Group current name is same with update name');
+            return;
+        }
+
+        // check another group exists with same name
+        const slug = GroupService.normalize(name);
+        const group = await this.db.findOneGroupBy({ slug, deleted: false });
+
+        if (group && group._id.toString() !== updateGroup._id.toString()) {
+            throw new GroupExists(`Another group exists with name "${name}".`);
+        }
+
+        try {
+            await this.db.updateGroup(groupId, { name, slug });
+        } catch (e) {
+            this.logger.error('Group can not updated', e, { groupId, name });
+            throw e;
+        }
+    }
+
+    /**
+     * Delete's group with given id
+     * @param id Group id
+     */
+    public async delete(id: string) {
+        if (typeof id !== 'string' || id.length !== 24) {
+            throw new InvalidArgument('group', 'Id invalid');
+        }
+
+        const group = await this.db.findOneGroupBy({ _id: id, deleted: false });
+        if (!group) {
+            throw new GroupNotFound(`Group not found with id "${id}".`);
+        }
+
+        try {
+            // Mark group as deleted
+            await this.db.updateGroup(id, { deleted: true, deletedAt: new Date() });
+        } catch (e) {
+            this.logger.error('Group can not deleted', e, { id });
+            throw e;
+        }
+    }
+
+    /**
+     * Retrieve one group from database with given id, name or slug.
+     * @param {object} by Query parameters
+     * @param {string} by.id Group id
+     * @param {string} by.name Group name
+     * @param {string} by.slug Group slug
+     * @param {boolean} deleted Is group deleted. Default false.
+     * @returns {Promise<IGroup | null>}
+     */
+    public async get(by: { id?: string, name?: string, slug?: string }, deleted: boolean = false):
+        Promise<IGroup | null> {
+        this.logger.info('Getting group', { by, deleted });
+        if (typeof by !== 'object' || (by.id === undefined && by.name === undefined && by.slug === undefined)) {
+            throw new InvalidArgument('by');
+        }
+        if (typeof deleted !== 'boolean') {
+            throw new InvalidArgument('deleted');
+        }
+        if (by.id !== undefined && (typeof by.id !== 'string' || by.id.length !== 24)) {
+            throw new InvalidArgument('by.id', 'Id must be a string and length of 24.');
+        }
+
+        if (by.name !== undefined && typeof by.name !== 'string') {
+            throw new InvalidArgument('by.name', 'Name must be a string.');
+        }
+        if (typeof by.name === "string" && (by.name.length < 1 || by.name.length > 35)) {
+            throw new InvalidArgument('by.name', 'Name length invalid.');
+        }
+
+        if (by.slug !== undefined && typeof by.slug !== 'string') {
+            throw new InvalidArgument('by.slug', 'Slug must be a string.');
+        }
+        if (typeof by.slug === "string" && GroupService.normalize(by.slug) !== by.slug) {
+            throw new InvalidArgument('by.slug', 'Slug contains invalid characters.');
+        }
+        if (typeof by.slug === "string" && (by.slug.length < 1 || by.slug.length > 35)) {
+            throw new InvalidArgument('by.slug', 'Slug length invalid.');
+        }
+
+        let group: IGroupDocument | null = null;
+        try {
+            if (by.id) {
+                group = await this.db.findOneGroupBy({ _id: by.id, deleted });
+            } else if (by.name) {
+                group = await this.db.findOneGroupBy({ name: by.name, deleted });
+            } else if (by.slug) {
+                group = await this.db.findOneGroupBy({ slug: by.slug, deleted });
+            }
+            return group ? GroupService.toGroup(group) : null;
+        } catch (e) {
+            this.logger.error('Getting group failed', e, { by, deleted });
+            throw e;
+        }
+    }
+
     /**
      * Returns list of Groups with given filter. If not filter will given returns all groups.
      * @param {IGroupFilter} filters Filters
@@ -213,60 +233,21 @@ export class GroupService {
      */
     public async list(filters: IGroupFilter = {}, pagination: PaginateOptions = { limit: 10 }):
         Promise<PaginateResult<IGroup>> {
+        this.logger.info('Listing groups.', { filters, pagination });
+
         try {
-            this.logger.debug('List', {filters, pagination});
             const result = await this.db.filterGroup(filters, pagination);
-            this.logger.debug('List', {result});
-            return { ...result, docs: result.docs.map(this.toGroup) };
+            this.logger.debug('List result', { result });
+            return {
+                docs: result.docs.map(GroupService.toGroup),
+                total: result.total,
+                limit: result.limit,
+                page: result.page,
+                pages: result.pages,
+                offset: result.offset
+            };
         } catch (e) {
-            this.logger.error('List', e);
-            throw e;
-        }
-    }
-
-    /**
-     * Remove Group relation from User entry
-     * @param userId User id
-     * @param groupId Group id
-     */
-    public async removeGroupFromUser(userId: string, groupId: string): Promise<void> {
-        try {
-            const entry = await this.db.findOneUserBy({ id: userId, deleted: false });
-            this.logger.debug('User entry get from database', { entry });
-            if (entry) {
-                const groups = new Set(entry.groups);
-                groups.delete(groupId);
-                await this.db.updateUser(userId, { groups: [...groups], count: groups.size });
-            } else {
-                this.logger.warn('User entry not found.', { userId, groupId });
-            }
-        } catch (e) {
-            this.logger.error('Removing group relation from user failed', e, { userId, groupId });
-            throw e;
-        }
-    }
-
-    /**
-     * Remove User relation from Group entry
-     * @param userId User id
-     * @param groupId Group id
-     */
-    public async removeUserFromGroup(userId: string, groupId: string): Promise<void> {
-        try {
-            const group = await this.db.findOneGroupBy({ _id: groupId, deleted: false });
-
-            if (!group) {
-                throw new GroupNotFound();
-            }
-
-            const users = new Set(group.users);
-            users.delete(userId);
-            await this.db.updateGroup(groupId, {
-                users: [...users],
-                count: users.size
-            });
-        } catch (e) {
-            this.logger.error('Removing user relation from group failed', e, { userId, groupId });
+            this.logger.error('Listing groups failed.', e);
             throw e;
         }
     }
@@ -276,20 +257,72 @@ export class GroupService {
      * @param userId User id
      * @param groupId Group id
      */
-    public async addUserToGroup(userId: string, groupId: string): Promise<void> {
+    public async add(userId: string, groupId: string): Promise<void> {
+        if (typeof userId !== 'string' || userId.length !== 24) {
+            throw new InvalidArgument('userId', 'User id invalid.');
+        }
+        if (typeof groupId !== 'string' || groupId.length !== 24) {
+            throw new InvalidArgument('userId', 'Group id invalid.');
+        }
+
         const group = await this.db.findOneGroupBy({ _id: groupId, deleted: false });
         if (!group) {
             throw new GroupNotFound();
         }
 
         try {
-            const users = new Set(group.users).add(userId);
+            const users = new Set(group.users);
+
+            // If user already in group do not perform db update
+            if (users.has(userId)) {
+                this.logger.warn('User already in group.', { userId, groupId });
+                return;
+            }
+
+            users.add(userId);
             await this.db.updateGroup(groupId, {
                 users: [...users],
                 count: users.size
             });
         } catch (e) {
             this.logger.error('Adding user to group entry failed', e, { userId, groupId });
+            throw e;
+        }
+    }
+
+    /**
+     * Remove User relation from Group entry.
+     * @param {string} userId User id
+     * @param {string} groupId Group id
+     */
+    public async remove(userId: string, groupId: string): Promise<void> {
+        if (typeof userId !== 'string' || userId.length !== 24) {
+            throw new InvalidArgument('userId', 'User id invalid.');
+        }
+        if (typeof groupId !== 'string' || groupId.length !== 24) {
+            throw new InvalidArgument('userId', 'Group id invalid.');
+        }
+
+        const group = await this.db.findOneGroupBy({ _id: groupId, deleted: false });
+        if (!group) {
+            throw new GroupNotFound(`Group not found with id "${groupId}".`);
+        }
+
+        try {
+            const users = new Set(group.users);
+            const deleted = users.delete(userId);
+            // If user not in group do not perform db update
+            if (!deleted) {
+                this.logger.warn('User already not in group.', { userId, groupId });
+                return;
+            }
+
+            await this.db.updateGroup(groupId, {
+                users: [...users],
+                count: users.size
+            });
+        } catch (e) {
+            this.logger.error('Removing user relation from group failed', e, { userId, groupId });
             throw e;
         }
     }

@@ -11,6 +11,41 @@ import { User } from '../schemas/user.schema';
 
 @Service('DatabaseService')
 export class DatabaseService {
+
+    /**
+     * Paginates given data
+     * @param {T} data
+     * @param {PaginateOptions} options
+     * @returns {PaginateResult<T>}
+     */
+    public static paginate<T = any>(data: T[], options: PaginateOptions = {}): PaginateResult<T> {
+        const page = options.page || 1;
+        const limit = options.limit || 0;
+        const offset = options.offset || 0;
+
+        // Offset
+        const offseted = data.slice(offset);
+
+        const total = offseted.length;
+
+        // Find pages
+        let pages: number = 0;
+        if (limit >= offseted.length) {
+            pages = 1;
+        } else {
+            let count = 0;
+            while (count < offseted.length) {
+                count += limit;
+                pages += 1;
+            }
+        }
+        const start = limit * (page - 1);
+        const end = limit ? start + limit : offseted.length;
+        const docs = offseted.slice(start, end);
+        const paginated = { docs, total, offset, limit, page, pages };
+        return paginated;
+    }
+
     public logger: Logger;
     private db: Mongoose;
 

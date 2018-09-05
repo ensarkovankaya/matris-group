@@ -1,5 +1,6 @@
 import { PaginateOptions, PaginateResult } from 'mongoose';
-import { InvalidArgument, NotUserDocument, UserExists } from '../errors';
+import { Service } from 'typedi';
+import { InvalidArgument, InvalidDocument, UserExists, UserNotFound } from '../errors';
 import { getLogger, Logger } from "../logger";
 import { IUserFilter } from '../models/user.filter.model';
 import { IUser, IUserDocument } from '../models/user.model';
@@ -7,131 +8,17 @@ import { User } from '../schemas/user.schema';
 import { DatabaseService } from "./database.service";
 import { GroupService } from './group.service';
 
+@Service('UserService')
 export class UserService {
-    private logger: Logger;
-
-    constructor(private db: DatabaseService, private gs: GroupService) {
-        this.logger = getLogger('UserService', ['service']);
-    }
 
     /**
-     * Get User entry
-     * @param {string} id  User id
-     * @param {boolean} deleted Is user entry deleted
-     * @returns {Promise<IUser | null>} List of groups
+     * Transform User document to User object
+     * @param {IUserDocument} doc Mongo User Document
+     * @returns {IUser}
      */
-    public async get(id: string, deleted: boolean = false): Promise<IUser | null> {
-        this.logger.info('Getting user groups from database', { id, deleted });
-
-        if (typeof id !== 'string' || id.length !== 24) {
-            throw new InvalidArgument('id');
-        }
-
-        if (typeof deleted !== 'boolean') {
-            throw new InvalidArgument('deleted');
-        }
-
-        try {
-            const user = await this.db.findOneUserBy({ id, deleted });
-            return user ? this.toUser(user) : null;
-        } catch (e) {
-            this.logger.error('Getting user groups failed', e, { id, deleted });
-            throw e;
-        }
-    }
-
-    /**
-     * Creates new user entry
-     * @param id User id
-     */
-    public async create(id: string): Promise<IUser> {
-        this.logger.debug('Create', {id});
-        if (typeof id !== 'string' || id.length !== 24) {
-            throw new InvalidArgument('id');
-        }
-
-        const user = await this.db.findOneUserBy({ id, deleted: false });
-
-        if (user) {
-            this.logger.warn('User already exists', {user});
-            throw new UserExists();
-        }
-
-        try {
-            return this.db.createUser(id, {}).then(doc => this.toUser(doc));
-        } catch (e) {
-            this.logger.error('Create', e);
-            throw e;
-        }
-    }
-
-    public async list(filters: IUserFilter, pagination: PaginateOptions = {limit: 10}): Promise<PaginateResult<IUser>> {
-        try {
-            this.logger.debug('List', {filters, pagination});
-            return this.db.filterUser(filters, pagination);
-        } catch (e) {
-            this.logger.error('List', e);
-            throw e;
-        }
-    }
-
-    /**
-     * Add user to group
-     * @param {string} userId User id
-     * @param {string} groupId Group id
-     */
-    public async add(userId: string, groupId: string): Promise<void> {
-        if (typeof userId !== 'string' || userId.length !== 24) {
-            throw new InvalidArgument('userId');
-        }
-        if (typeof groupId !== 'string' || groupId.length !== 24) {
-            throw new InvalidArgument('groupId');
-        }
-
-        try {
-            await Promise.all([
-                this.addGroupToUser(userId, groupId),
-                this.gs.addUserToGroup(userId, groupId)
-            ]);
-        } catch (e) {
-            this.logger.error('User can not added to group', e, { userId, groupId });
-            throw e;
-        }
-    }
-
-    /**
-     * Adds group realation to User entry
-     * @param userId User id
-     * @param groupId Group id
-     */
-    public async addGroupToUser(userId: string, groupId: string): Promise<void> {
-        try {
-            const entry = await this.db.findOneUserBy({ id: userId, deleted: false });
-
-            if (entry) {
-                this.logger.debug('User entry recived', { entry });
-                const groups = new Set(entry.groups).add(groupId);
-                await this.db.updateUser(userId, {
-                    groups: [...groups],
-                    count: groups.size
-                });
-            } else {
-                this.logger.debug('User entry not found, creating.');
-                await this.db.createUser(userId, {
-                    groups: [groupId],
-                    count: 1
-                });
-            }
-        } catch (e) {
-            this.logger.error('Adding group to user entry failed', e, { userId, groupId });
-            throw e;
-        }
-    }
-
-    public toUser(doc: IUserDocument): IUser {
-        this.logger.debug('ToUser', {doc});
+    public static toUser(doc: IUserDocument): IUser {
         if (!(doc instanceof User)) {
-            throw new NotUserDocument();
+            throw new InvalidDocument('Document must be instance of User');
         }
         return {
             id: doc.id,
@@ -144,39 +31,174 @@ export class UserService {
         };
     }
 
+    private logger: Logger;
+
+    constructor(private db: DatabaseService) {
+        this.logger = getLogger('UserService', ['service']);
+    }
+
     /**
-     * Paginates given data
-     * @param {T} data
-     * @param {PaginateOptions} options
-     * @returns {PaginateResult<T>}
+     * Get User entry
+     * @param {string} id  User id
+     * @param {boolean} deleted Is user entry deleted
+     * @returns {Promise<IUser | null>} List of groups
      */
-    public paginate<T = any>(data: T[], options: PaginateOptions = {}): PaginateResult<T> {
-        this.logger.debug('Paginating data', { data, options });
-        const page = options.page || 1;
-        const limit = options.limit || 0;
-        const offset = options.offset || 0;
+    public async get(id: string, deleted: boolean = false): Promise<IUser | null> {
+        this.logger.info('Getting user from database', { id, deleted });
 
-        // Offset
-        const offseted = data.slice(offset);
-
-        const total = offseted.length;
-
-        // Find pages
-        let pages: number = 0;
-        if (limit >= offseted.length) {
-            pages = 1;
-        } else {
-            let count = 0;
-            while (count < offseted.length) {
-                count += limit;
-                pages += 1;
-            }
+        if (typeof id !== 'string' || id.length !== 24) {
+            throw new InvalidArgument('id');
         }
-        const start = limit * (page - 1);
-        const end = limit ? start + limit : offseted.length;
-        const docs = offseted.slice(start, end);
-        const paginated = { docs, total, offset, limit, page, pages };
-        this.logger.debug('Paginated', { paginated });
-        return paginated;
+        if (typeof deleted !== 'boolean') {
+            throw new InvalidArgument('deleted');
+        }
+
+        try {
+            const user = await this.db.findOneUserBy({ id, deleted });
+            return user ? UserService.toUser(user) : null;
+        } catch (e) {
+            this.logger.error('Getting user failed', e, { id, deleted });
+            throw e;
+        }
+    }
+
+    /**
+     * Creates new user entry
+     * @param {string} id User id
+     */
+    public async create(id: string): Promise<IUser> {
+        this.logger.debug('Create', { id });
+        if (typeof id !== 'string' || id.length !== 24) {
+            throw new InvalidArgument('id');
+        }
+
+        const user = await this.db.findOneUserBy({ id, deleted: false });
+
+        if (user) {
+            this.logger.warn('User already exists', { user });
+            throw new UserExists(`User entry already exists with id "${id}".`);
+        }
+
+        try {
+            return this.db.createUser(id, {}).then(doc => UserService.toUser(doc));
+        } catch (e) {
+            this.logger.error('Create', e);
+            throw e;
+        }
+    }
+
+    /**
+     * Marks user entry as deleted
+     * @param {string} id User id
+     */
+    public async delete(id: string): Promise<boolean> {
+        this.logger.debug('Update', { id });
+        if (typeof id !== 'string' || id.length !== 24) {
+            throw new InvalidArgument('id');
+        }
+
+        const user = await this.db.findOneUserBy({ id, deleted: false });
+
+        if (!user) {
+            this.logger.warn('User not found.', { id });
+            throw new UserNotFound(`User not found with id "${id}".`);
+        }
+
+        try {
+            await this.db.updateUser(id, { deleted: true, deletedAt: new Date() });
+            return true;
+        } catch (e) {
+            this.logger.error('Update', e);
+            throw e;
+        }
+    }
+
+    /**
+     * List users from database
+     * @param {IUserFilter} filters
+     * @param {PaginateOptions} pagination Default {limit: 10}.
+     * @returns {PaginateResult<IUser>}
+     */
+    public async list(filters: IUserFilter, pagination: PaginateOptions = { limit: 10 }):
+        Promise<PaginateResult<IUser>> {
+        this.logger.info('Listing users.', { filters, pagination });
+        try {
+            const result = await this.db.filterUser(filters, pagination);
+            return {
+                docs: result.docs.map(d => UserService.toUser(d)),
+                total: result.total,
+                limit: result.limit,
+                page: result.page,
+                pages: result.pages,
+                offset: result.offset
+            };
+        } catch (e) {
+            this.logger.error('Listing users failed', e, { filters, pagination });
+            throw e;
+        }
+    }
+
+    /**
+     * Adds group realation to User entry. If user entry not exists creates one
+     * @param userId User id
+     * @param groupId Group id
+     */
+    public async add(userId: string, groupId: string): Promise<void> {
+        try {
+            const user = await this.db.findOneUserBy({ id: userId, deleted: false });
+
+            if (user) {
+                this.logger.debug('User entry exists', { user });
+                const groups = new Set(user.groups);
+
+                // If user already in group do not perform db update
+                if (groups.has(groupId)) {
+                    this.logger.warn('User already in group.', { userId, groupId });
+                    return;
+                }
+
+                groups.add(groupId);
+                await this.db.updateUser(userId, {
+                    groups: [...groups],
+                    count: groups.size
+                });
+            } else {
+                this.logger.info('User entry not found, creating.');
+                await this.db.createUser(userId, {
+                    groups: [groupId],
+                    count: 1
+                });
+            }
+        } catch (e) {
+            this.logger.error('Adding group to user entry failed', e, { userId, groupId });
+            throw e;
+        }
+    }
+
+    /**
+     * Remove Group relation from User entry
+     * @param {string} userId User id
+     * @param {string} groupId Group id
+     */
+    public async remove(userId: string, groupId: string): Promise<void> {
+        try {
+            const user = await this.db.findOneUserBy({ id: userId, deleted: false });
+
+            if (user) {
+                const groups = new Set(user.groups);
+                const removed = groups.delete(groupId);
+                // If group not in user group's do not perform db update
+                if (!removed) {
+                    this.logger.warn('User already not in group', { userId, groupId });
+                    return;
+                }
+                await this.db.updateUser(userId, { groups: [...groups], count: groups.size });
+            } else {
+                this.logger.warn('User entry not found.', { userId, groupId });
+            }
+        } catch (e) {
+            this.logger.error('Removing group relation from user failed', e, { userId, groupId });
+            throw e;
+        }
     }
 }

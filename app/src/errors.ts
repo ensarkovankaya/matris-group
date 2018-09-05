@@ -15,6 +15,10 @@ export class GroupNotFound extends Error {
     public name = 'GroupNotFound';
 }
 
+export class GroupExists extends Error {
+    public name = 'GroupExists';
+}
+
 export class UserAlreadyInGroup extends Error {
     public name = 'UserAlreadyInGroup';
 }
@@ -27,6 +31,6 @@ export class UserExists extends Error {
     public name = 'UserExits';
 }
 
-export class NotUserDocument extends Error {
-    public name = 'NotUserDocument';
+export class InvalidDocument extends Error {
+    public name = 'InvalidDocument';
 }
