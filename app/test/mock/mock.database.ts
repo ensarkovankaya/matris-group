@@ -23,6 +23,12 @@ interface IUserFilgerConditions extends IUserFilter {
  */
 @Service('MockDatabase')
 export class MockDatabase {
+    /**
+     * Call tree for database. Each method call added to array in call order.
+     * @var method Called method name
+     * @var arguments Arguments which called method recived
+     */
+    public stack: Array<{ method: string, arguments: { [key: string]: any } }> = [];
 
     private logger: Logger;
     private db: boolean = false;
@@ -33,6 +39,10 @@ export class MockDatabase {
 
     public async connect(user: string, password: string, host: string, port: number) {
         this.logger.debug('Connecting to database', { user, password, host, port });
+        this.stack.push({
+            method: 'connect',
+            arguments: { 0: user, 1: password, 2: host, 3: port }
+        });
         if (this.db) {
             throw new Error('Database already connected');
         }
@@ -40,6 +50,7 @@ export class MockDatabase {
     }
 
     public async disconnect() {
+        this.stack.push({ method: 'disconnect', arguments: {} });
         if (!this.db) {
             this.logger.warn('Databae not connected');
         }
@@ -48,6 +59,10 @@ export class MockDatabase {
 
     public async findOneGroupBy(condition: IGroupFilterConditions) {
         this.logger.debug('FindOneGroupBy', { condition });
+        this.stack.push({
+            method: 'findOneGroupBy',
+            arguments: { 0: condition }
+        });
         try {
             return this._filterGroup(this.groups.slice(), condition)[0];
         } catch (e) {
@@ -59,6 +74,10 @@ export class MockDatabase {
     public async filterGroup(conditions: IGroupFilter, pagination: PaginateOptions):
         Promise<PaginateResult<IGroupDocument>> {
         this.logger.debug('FilterGroup', { conditions, pagination });
+        this.stack.push({
+            method: 'filterGroup',
+            arguments: { 0: conditions, 1: pagination }
+        });
         try {
             return this.paginate(this._filterGroup(this.groups.slice(), conditions), pagination);
         } catch (e) {
@@ -69,6 +88,10 @@ export class MockDatabase {
 
     public async createGroup(data: object) {
         this.logger.debug('CreateGroup', { data });
+        this.stack.push({
+            method: 'createGroup',
+            arguments: { 0: data }
+        });
         try {
             const group = new Group({
                 ...data,
@@ -91,6 +114,10 @@ export class MockDatabase {
      */
     public async updateGroup(id: string, data: object): Promise<void> {
         this.logger.debug('UpdateGroup', { id, data });
+        this.stack.push({
+            method: 'updateGroup',
+            arguments: { 0: id, 1: data }
+        });
 
         const group = this.groups.find(g => g._id.toString() === id);
 
@@ -119,6 +146,10 @@ export class MockDatabase {
      */
     public async deleteGroup(id: string): Promise<void> {
         this.logger.debug('DeleteGroup', { id });
+        this.stack.push({
+            method: 'deleteGroup',
+            arguments: { 0: id }
+        });
         try {
             this.groups = this.groups.filter(g => g._id.toString() !== id);
         } catch (err) {
@@ -134,6 +165,10 @@ export class MockDatabase {
      */
     public async createUser(id: string, data: object): Promise<IUserDocument> {
         this.logger.debug('CreateUser', { id, data });
+        this.stack.push({
+            method: 'createUser',
+            arguments: { 0: id, 1: data }
+        });
         try {
             const user = new User({
                 ...data,
@@ -157,7 +192,10 @@ export class MockDatabase {
      */
     public async updateUser(userId: string, data: object): Promise<void> {
         this.logger.debug('Updating user entery', { userId, data });
-
+        this.stack.push({
+            method: 'updateUser',
+            arguments: { 0: userId, 1: data }
+        });
         const user = this.users.find(u => u.id === userId);
 
         if (!user) {
@@ -186,6 +224,10 @@ export class MockDatabase {
      */
     public async deleteUser(userId: string): Promise<void> {
         this.logger.debug('DeleteUser', { userId });
+        this.stack.push({
+            method: 'deleteUser',
+            arguments: { 0: userId }
+        });
         try {
             this.users = this.users.filter(u => u._id.toString() !== userId);
         } catch (err) {
@@ -200,8 +242,12 @@ export class MockDatabase {
      * @returns {Promise<IUserDocument | null>}
      */
     public async findOneUserBy(condition: IUserFilgerConditions): Promise<IUserDocument | null> {
+        this.logger.debug('FindOneUserBy', { condition });
+        this.stack.push({
+            method: 'findOneUserBy',
+            arguments: { 0: condition }
+        });
         try {
-            this.logger.debug('FindOneUserBy', {condition});
             return this._filterUser(this.users.slice(), condition)[0];
         } catch (e) {
             this.logger.error('FindOneUserBy', e);
@@ -218,6 +264,10 @@ export class MockDatabase {
     public async filterUser(conditions: IUserFilter, pagination: PaginateOptions):
         Promise<PaginateResult<IUserDocument>> {
         this.logger.debug('FilterUser', { conditions, pagination });
+        this.stack.push({
+            method: 'filterUser',
+            arguments: { 0: conditions, 1: pagination }
+        });
         try {
             return this.paginate(this._filterUser(this.users.slice(), conditions), pagination);
         } catch (e) {
@@ -271,7 +321,7 @@ export class MockDatabase {
 
     private _filterUser(data: IUserDocument[], conditions: IUserFilgerConditions): IUserDocument[] {
         try {
-            this.logger.debug('_FilterUser', {data, conditions});
+            this.logger.debug('_FilterUser', { data, conditions });
             if (conditions._id) {
                 data = data.filter(d => d._id.toString() === conditions._id);
             }
