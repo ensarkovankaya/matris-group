@@ -300,7 +300,7 @@ export class GroupService {
             throw new InvalidArgument('userId', 'User id invalid.');
         }
         if (typeof groupId !== 'string' || groupId.length !== 24) {
-            throw new InvalidArgument('userId', 'Group id invalid.');
+            throw new InvalidArgument('groupId', 'Group id invalid.');
         }
 
         const group = await this.db.findOneGroupBy({ _id: groupId, deleted: false });
