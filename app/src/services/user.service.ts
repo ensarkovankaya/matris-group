@@ -6,7 +6,6 @@ import { IUserFilter } from '../models/user.filter.model';
 import { IUser, IUserDocument } from '../models/user.model';
 import { User } from '../schemas/user.schema';
 import { DatabaseService } from "./database.service";
-import { GroupService } from './group.service';
 
 @Service('UserService')
 export class UserService {
@@ -68,8 +67,11 @@ export class UserService {
      */
     public async create(id: string): Promise<IUser> {
         this.logger.debug('Create', { id });
-        if (typeof id !== 'string' || id.length !== 24) {
-            throw new InvalidArgument('id');
+        if (typeof id !== 'string') {
+            throw new InvalidArgument('id', 'User id must be a string.');
+        }
+        if (id.length !== 24) {
+            throw new InvalidArgument('id', 'Invalid user id.');
         }
 
         const user = await this.db.findOneUserBy({ id, deleted: false });
@@ -91,10 +93,13 @@ export class UserService {
      * Marks user entry as deleted
      * @param {string} id User id
      */
-    public async delete(id: string): Promise<boolean> {
-        this.logger.debug('Update', { id });
-        if (typeof id !== 'string' || id.length !== 24) {
-            throw new InvalidArgument('id');
+    public async delete(id: string): Promise<void> {
+        this.logger.debug('Delete', { id });
+        if (typeof id !== 'string') {
+            throw new InvalidArgument('id', 'User id must be a string.');
+        }
+        if (id.length !== 24) {
+            throw new InvalidArgument('id', 'Invalid user id.');
         }
 
         const user = await this.db.findOneUserBy({ id, deleted: false });
@@ -106,9 +111,8 @@ export class UserService {
 
         try {
             await this.db.updateUser(id, { deleted: true, deletedAt: new Date() });
-            return true;
         } catch (e) {
-            this.logger.error('Update', e);
+            this.logger.error('Delete', e);
             throw e;
         }
     }
