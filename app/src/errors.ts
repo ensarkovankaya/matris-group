@@ -28,7 +28,7 @@ export class UserNotFound extends Error {
 }
 
 export class UserExists extends Error {
-    public name = 'UserExits';
+    public name = 'UserExists';
 }
 
 export class InvalidDocument extends Error {
