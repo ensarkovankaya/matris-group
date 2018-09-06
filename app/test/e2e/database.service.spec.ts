@@ -1455,6 +1455,45 @@ describe('E2E -> Database', () => {
             });
         });
     });
+
+    describe('Paginate', () => {
+        it('should paginate with limit 10', () => {
+            const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+            const result = DatabaseService.paginate(data, {limit: 10});
+            expect(result).to.be.an('object');
+            expect(result).to.have.keys(['docs', 'total', 'limit', 'page', 'pages', 'offset']);
+            expect(result.total).to.be.eq(15);
+            expect(result.page).to.be.eq(1);
+            expect(result.pages).to.be.eq(2);
+            expect(result.offset).to.be.eq(0);
+            expect(result.docs).to.have.lengthOf(10);
+            expect(result.docs).to.deep.eq([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+        });
+        it('should return page 2', () => {
+            const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+            const result = DatabaseService.paginate(data, {limit: 10, page: 2});
+            expect(result).to.be.an('object');
+            expect(result).to.have.keys(['docs', 'total', 'limit', 'page', 'pages', 'offset']);
+            expect(result.total).to.be.eq(15);
+            expect(result.page).to.be.eq(2);
+            expect(result.pages).to.be.eq(2);
+            expect(result.offset).to.be.eq(0);
+            expect(result.docs).to.have.lengthOf(5);
+            expect(result.docs).to.deep.eq([11, 12, 13, 14, 15]);
+        });
+        it('should offset', () => {
+            const data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+            const result = DatabaseService.paginate(data, {limit: 10, offset: 2});
+            expect(result).to.be.an('object');
+            expect(result).to.have.keys(['docs', 'total', 'limit', 'page', 'pages', 'offset']);
+            expect(result.total).to.be.eq(13);
+            expect(result.page).to.be.eq(1);
+            expect(result.pages).to.be.eq(2);
+            expect(result.offset).to.be.eq(2);
+            expect(result.docs).to.have.lengthOf(10);
+            expect(result.docs).to.deep.eq([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        });
+    });
 });
 
 after('Disconnect from Database', async () => {
