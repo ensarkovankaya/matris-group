@@ -24,7 +24,7 @@ export class Group implements IGroup {
     @Field({description: 'Group update date.'})
     public updatedAt: Date;
 
-    @Field({description: 'Group delete date.'})
+    @Field({description: 'Group delete date.', nullable: true})
     public deletedAt: Date | null;
 
     @Field({description: 'Is group deleted.'})
