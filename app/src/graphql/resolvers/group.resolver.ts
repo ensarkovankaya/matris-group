@@ -27,10 +27,10 @@ export class GroupResolver {
         @Arg('filters', { nullable: true }) filters: GroupFilterInput = new GroupFilterInput(),
         @Arg('pagination', { nullable: true }) pagination: PaginationInput = new PaginationInput()) {
         if (!(filters instanceof GroupFilterInput)) {
-            throw new InvalidArgument('filters', 'Argument "filters" not instance of GroupFilterInput');
+            throw new InvalidArgument('filters', 'Argument "filters" is not instance of GroupFilterInput');
         }
         if (!(pagination instanceof PaginationInput)) {
-            throw new InvalidArgument('pagination', 'Argument "pagination" not instance of PaginationInput');
+            throw new InvalidArgument('pagination', 'Argument "pagination" is not instance of PaginationInput');
         }
         try {
             this.logger.debug('List', { filters, pagination });
@@ -52,11 +52,12 @@ export class GroupResolver {
         }) deleted: boolean = false): Promise<Group | null> {
         this.logger.debug('Get', { by, deleted });
         if (!(by instanceof GetGroupInput)) {
-            throw new InvalidArgument('by', 'Argument "by" not instance of GroupGetArgs');
+            throw new InvalidArgument('by', 'Argument "by" is not instance of GroupGetArgs');
         }
         if (typeof deleted !== 'boolean') {
             throw new InvalidArgument('deleted', 'Argument "deleted" not a boolean');
         }
+
         try {
             await by.validate();
             return await this.gs.get(by, deleted);
@@ -69,7 +70,7 @@ export class GroupResolver {
     @Mutation(returnType => Group, { description: 'Create Group.' })
     public async createGroup(@Arg('data') data: CreateGroupInput): Promise<Group> {
         if (!(data instanceof CreateGroupInput)) {
-            throw new InvalidArgument('data', 'Argument "data" not instance of CreateGroupInput');
+            throw new InvalidArgument('data', 'Argument "data" is not instance of CreateGroupInput');
         }
         try {
             this.logger.debug('Create', { data });
@@ -84,7 +85,7 @@ export class GroupResolver {
     @Mutation(returnType => Group, { description: 'Update Group.' })
     public async updateGroup(@Arg('data') data: UpdateGroupInput): Promise<Group> {
         if (!(data instanceof UpdateGroupInput)) {
-            throw new InvalidArgument('data', 'Argument "data" not instance of UpdateGroupInput');
+            throw new InvalidArgument('data', 'Argument "data" is not instance of UpdateGroupInput');
         }
         try {
             this.logger.debug('Create', { data });

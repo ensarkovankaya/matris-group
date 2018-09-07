@@ -30,11 +30,11 @@ export class UserResolver {
     public async getUser(@Arg('by') by: GetUserInput): Promise<IUser | null> {
         this.logger.debug('GetUser', { by });
         if (!(by instanceof GetUserInput)) {
-            throw new InvalidArgument('by', 'Argument "by" not instance of GetUserArgs');
+            throw new InvalidArgument('by', 'Argument "by" is not instance of GetUserArgs');
         }
-        await by.validate(); // Validate data
 
         try {
+            await by.validate(); // Validate data
             return this.us.get(by.id, by.deleted);
         } catch (e) {
             this.logger.error('GetUser', e, { by });
@@ -52,11 +52,11 @@ export class UserResolver {
     public async createUser(@Arg('data') data: CreateUserInput): Promise<IUser> {
         this.logger.debug('CreateUser', { data });
         if (!(data instanceof CreateUserInput)) {
-            throw new InvalidArgument('data', 'Argument "data" not instance of CreateUserInput');
+            throw new InvalidArgument('data', 'Argument "data" is not instance of CreateUserInput');
         }
-        data.validate(); // Validate data
 
         try {
+            await data.validate(); // Validate data
             return this.us.create(data.id);
         } catch (e) {
             this.logger.error('CreateUser', e, { data });
