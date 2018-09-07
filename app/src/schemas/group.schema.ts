@@ -2,6 +2,9 @@ import { model, Schema } from "mongoose";
 import * as mongoosePaginate from 'mongoose-paginate';
 import { IGroupDocument } from "../models/group.model";
 
+export const groupNameRegex = new RegExp('^[a-zA-Z0-9ÖöÇçŞşĞğı ]+$');
+export const groupSlugRegex = new RegExp('^[a-z0-9\-]+$');
+
 const GroupSchema: Schema = new Schema({
     name: {
         minlength: 1,
@@ -9,7 +12,7 @@ const GroupSchema: Schema = new Schema({
         required: true,
         type: String,
         trim: true,
-        match: new RegExp('^[a-zA-Z0-9 ]+$')
+        match: groupNameRegex
     },
     slug: {
         minlength: 1,
@@ -18,7 +21,7 @@ const GroupSchema: Schema = new Schema({
         type: String,
         trim: true,
         lowercase: true,
-        match: new RegExp('^[a-z0-9\-]+$')
+        match: groupSlugRegex
     },
     users: {
         default: () => new Array(),

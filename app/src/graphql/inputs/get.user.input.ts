@@ -1,10 +1,12 @@
-import { IsBoolean, IsMongoId, ValidateIf } from "class-validator";
+import { IsBoolean, IsMongoId, IsString, Length, ValidateIf } from "class-validator";
 import {Field, InputType } from 'type-graphql';
 import { Validatable } from '../validatable';
 
 @InputType()
 export class GetUserInput extends Validatable {
     @Field({description: 'User id.'})
+    @IsString()
+    @Length(24, 24)
     @IsMongoId()
     public id: string;
 
@@ -13,7 +15,7 @@ export class GetUserInput extends Validatable {
     @IsBoolean()
     public deleted?: boolean;
 
-    constructor(data = {}) {
+    constructor(data: {id: string, deleted?: boolean} = {id: ''}) {
         super({deleted: false, ...data}, ['id', 'deleted']);
     }
 }

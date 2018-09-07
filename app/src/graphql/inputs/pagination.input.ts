@@ -10,7 +10,6 @@ export class PaginationInput extends Validatable implements PaginateOptions {
     @ValidateIf((object, value) => value !== undefined)
     @IsNumber()
     @Min(1)
-    @Max(9999)
     public page?: number;
 
     @Field({nullable: true, description: 'Current offset from data'})
@@ -25,7 +24,7 @@ export class PaginationInput extends Validatable implements PaginateOptions {
     @IsIn([5, 10, 25, 50, 100, 150])
     public limit?: number;
 
-    constructor(data: PaginateOptions = {page: 1, offset: 0, limit: 10}) {
-        super(data, ['page', 'offset', 'limit']);
+    constructor(data: {page?: number, offset?: number, limit?: number} = {}) {
+        super({page: 1, offset: 0, limit: 10, ...data}, ['page', 'offset', 'limit']);
     }
 }

@@ -9,7 +9,7 @@ export class CreateUserInput extends Validatable {
     @Length(24, 24)
     public id: string;
 
-    constructor(data = {}) {
+    constructor(data: {id?: string} = {}) {
         super(data, ['id']);
     }
 }

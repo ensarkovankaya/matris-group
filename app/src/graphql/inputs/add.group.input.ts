@@ -12,7 +12,7 @@ export class AddGroupInput extends Validatable {
     @IsMongoId()
     public groupId: string;
 
-    constructor(data = {}) {
+    constructor(data: {userId?: string, groupId?: string} = {}) {
         super(data, ['userId', 'groupId']);
     }
 }
