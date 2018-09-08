@@ -22,10 +22,11 @@ export class GroupResolver {
         this.logger = getLogger('GroupResolver', ['resolver']);
     }
 
-    @Query(returnType => GroupListResultSchema, { description: 'Lists group.' })
+    @Query(returnType => GroupListResultSchema, { description: 'List existing groups.' })
     public async listGroups(
         @Arg('filters', { nullable: true }) filters: GroupFilterInput = new GroupFilterInput(),
         @Arg('pagination', { nullable: true }) pagination: PaginationInput = new PaginationInput()) {
+        this.logger.debug('ListGroups', { filters, pagination });
         if (!(filters instanceof GroupFilterInput)) {
             throw new InvalidArgument('filters', 'Argument "filters" is not instance of GroupFilterInput');
         }
@@ -33,12 +34,11 @@ export class GroupResolver {
             throw new InvalidArgument('pagination', 'Argument "pagination" is not instance of PaginationInput');
         }
         try {
-            this.logger.debug('List', { filters, pagination });
             await filters.validate();
             await pagination.validate();
             return await this.gs.list(filters, pagination);
         } catch (e) {
-            this.logger.error('List', e, { filters, pagination });
+            this.logger.error('ListGroups', e, { filters, pagination });
             throw e;
         }
     }
@@ -50,7 +50,7 @@ export class GroupResolver {
             nullable: true,
             description: 'Is group deleted. Default false.'
         }) deleted: boolean = false): Promise<Group | null> {
-        this.logger.debug('Get', { by, deleted });
+        this.logger.debug('GetGroup', { by, deleted });
         if (!(by instanceof GetGroupInput)) {
             throw new InvalidArgument('by', 'Argument "by" is not instance of GroupGetArgs');
         }
@@ -62,54 +62,54 @@ export class GroupResolver {
             await by.validate();
             return await this.gs.get(by, deleted);
         } catch (e) {
-            this.logger.error('Get', e, { by, deleted });
+            this.logger.error('GetGroup', e, { by, deleted });
             throw e;
         }
     }
 
-    @Mutation(returnType => Group, { description: 'Create Group.' })
+    @Mutation(returnType => Group, { description: 'Create new Group.' })
     public async createGroup(@Arg('data') data: CreateGroupInput): Promise<Group> {
+        this.logger.debug('CreateGroup', { data });
         if (!(data instanceof CreateGroupInput)) {
             throw new InvalidArgument('data', 'Argument "data" is not instance of CreateGroupInput');
         }
         try {
-            this.logger.debug('Create', { data });
             await data.validate();
             return await this.gs.create(data.name);
         } catch (e) {
-            this.logger.error('Create', e, { data });
+            this.logger.error('CreateGroup', e, { data });
             throw e;
         }
     }
 
-    @Mutation(returnType => Group, { description: 'Update Group.' })
+    @Mutation(returnType => Group, { description: 'Update existing Group.' })
     public async updateGroup(@Arg('data') data: UpdateGroupInput): Promise<Group> {
+        this.logger.debug('UpdateGroup', { data });
         if (!(data instanceof UpdateGroupInput)) {
             throw new InvalidArgument('data', 'Argument "data" is not instance of UpdateGroupInput');
         }
         try {
-            this.logger.debug('Create', { data });
             await data.validate();
             await this.gs.update(data.id, data.name);
             return this.gs.get({ id: data.id });
         } catch (e) {
-            this.logger.error('Update', e, { data });
+            this.logger.error('UpdateGroup', e, { data });
             throw e;
         }
     }
 
-    @Mutation(returnType => Boolean, { description: 'Delete Group' })
+    @Mutation(returnType => Boolean, { description: 'Delete existing Group' })
     public async deleteGroup(@Arg('data') data: DeleteGroupInput): Promise<boolean> {
+        this.logger.debug('DeleteGroup', { data });
         if (!(data instanceof DeleteGroupInput)) {
             throw new InvalidArgument('data', 'Argument "data" not instance of DeleteGroupInput');
         }
         try {
-            this.logger.debug('Delete', { data });
             await data.validate();
             await this.gs.delete(data.id);
             return true;
         } catch (e) {
-            this.logger.error('Delete', e, { data });
+            this.logger.error('DeleteGroup', e, { data });
             throw e;
         }
     }
